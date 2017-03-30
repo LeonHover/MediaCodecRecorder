@@ -113,12 +113,28 @@ public class AndroidRecorder extends VideoRecorder implements MediaRecorder.OnEr
     @Override
     public void onError(MediaRecorder mr, int what, int extra) {
         Log.d(TAG, "onError what:" + what + " extra:" + extra);
+        switch (what) {
+            case MediaRecorder.MEDIA_RECORDER_ERROR_UNKNOWN:
+                Log.d(TAG, "onInfo what:MEDIA_RECORDER_INFO_MAX_DURATION_REACHED" + " extra:" + extra);
+                break;
+            case MediaRecorder.MEDIA_ERROR_SERVER_DIED:
+                Log.d(TAG, "onInfo what:MEDIA_RECORDER_INFO_UNKNOWN" + " extra:" + extra);
+                break;
+        }
         notifyRecorderInfo(what, extra);
     }
 
     @Override
     public void onInfo(MediaRecorder mr, int what, int extra) {
         Log.d(TAG, "onInfo what:" + what + " extra:" + extra);
+        switch (what) {
+            case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
+                Log.d(TAG, "onInfo what:MEDIA_RECORDER_INFO_MAX_DURATION_REACHED" + " extra:" + extra);
+                break;
+            case MediaRecorder.MEDIA_RECORDER_INFO_UNKNOWN:
+                Log.d(TAG, "onInfo what:MEDIA_RECORDER_INFO_UNKNOWN" + " extra:" + extra);
+                break;
+        }
         notifyRecorderInfo(what, extra);
     }
 }
