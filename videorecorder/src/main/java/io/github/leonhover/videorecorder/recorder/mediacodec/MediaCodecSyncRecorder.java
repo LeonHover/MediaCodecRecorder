@@ -135,7 +135,7 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
                 MediaFormat mVideoFormat = MediaFormat.createVideoFormat(MIME_TYPE_AVC, 480, 480);
                 mVideoFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1024_000);
                 mVideoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
-                mVideoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+                mVideoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
                 mVideoFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
 
                 //选择合适的Codec
@@ -207,7 +207,7 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
                     mGLSurface.makeCurrent();
                     Matrix.setIdentityM(mtx, 0);
                     mGLDrawer.draw(textureId, mvpMtx, mtx);
-                    mGLSurface.setPresentationTime(getPTSUs());
+                    mGLSurface.setPresentationTime(System.nanoTime());
 //                    try {
 //                        File png = new File("/sdcard/xiaokaxiu/" + System.currentTimeMillis() + ".png");
 //                        mGLSurface.saveFrame(png);
@@ -236,25 +236,13 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
             return;
         }
 
+
+        ByteBuffer[] outputBuffers = mMediaCodec.getOutputBuffers();
         while (isEncoding) {
             int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 0);
-//            Log.d(TAG, "outputBufferIndex =" + outputBufferIndex);
-            if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                Log.d(TAG, "INFO_TRY_AGAIN_LATER");
-                break;
-            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED");
-
-                MediaFormat mediaFormat = mMediaCodec.getOutputFormat();
-                Log.d(TAG, "video:" + mediaFormat.toString());
-                mVideoTrackId = mMediaMuxer.addTrack(mediaFormat);
-                mMediaMuxer.start();
-            } else {
-
-                Log.e(TAG, "flags is " + mBufferInfo.flags);
-
-//                Log.d(TAG, "write data");
-                ByteBuffer[] outputBuffers = mMediaCodec.getOutputBuffers();
+            Log.d(TAG, "outputBufferIndex=" + outputBufferIndex + " flags:" + mBufferInfo.flags);
+            if (outputBufferIndex >= 0) {
+                // outputBuffers[outputBufferId] is ready to be processed or rendered.
 
                 ByteBuffer encodedData = outputBuffers[outputBufferIndex];
                 if (encodedData == null) {
@@ -279,36 +267,45 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
 
                     }
                     Log.d(TAG, "writeSampleData");
-                    prevOutputPTSUs = mBufferInfo.presentationTimeUs;
+//                    prevOutputPTSUs = mBufferInfo.presentationTimeUs;
                 }
-            }
 
-            if (outputBufferIndex >= 0) {
-                mMediaCodec.releaseOutputBuffer(outputBufferIndex, true);
-            }
+                mMediaCodec.releaseOutputBuffer(outputBufferIndex, false);
 
 
-            if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                Log.d(TAG, "Encoding  end of stream");
-                isEncoding = false;
-                break;      // out of while
+                if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                    Log.d(TAG, "Encoding  end of stream");
+                    isEncoding = false;
+                    break;      // out of while
+                }
+
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+                outputBuffers = mMediaCodec.getOutputBuffers();
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                MediaFormat mediaFormat = mMediaCodec.getOutputFormat();
+                Log.d(TAG, "video:" + mediaFormat.toString());
+                mVideoTrackId = mMediaMuxer.addTrack(mediaFormat);
+                mMediaMuxer.start();
+            } else if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                break;
             }
+
         }
     }
 
-    private long prevOutputPTSUs = 0;
-
-    /**
-     * get next encoding presentationTimeUs
-     *
-     * @return
-     */
-    protected long getPTSUs() {
-        long result = System.nanoTime() / 1000L;
-        // presentationTimeUs should be monotonic
-        // otherwise muxer fail to write
-        if (result < prevOutputPTSUs)
-            result = (prevOutputPTSUs - result) + result;
-        return result;
-    }
+//    private long prevOutputPTSUs = 0;
+//
+//    /**
+//     * get next encoding presentationTimeUs
+//     *
+//     * @return
+//     */
+//    protected long getPTSUs() {
+//        long result = System.nanoTime() / 1000L;
+//        // presentationTimeUs should be monotonic
+//        // otherwise muxer fail to write
+//        if (result < prevOutputPTSUs)
+//            result = (prevOutputPTSUs - result) + result;
+//        return result;
+//    }
 }
