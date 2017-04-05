@@ -24,8 +24,8 @@ public class GLContext {
     // Android-specific extension.
     private static final int EGL_RECORDABLE_ANDROID = 0x3142;
 
-    private EGLContext mEGLContext;
-    private EGLDisplay mEGLDisplay;
+    private EGLContext mEGLContext = EGL14.EGL_NO_CONTEXT;
+    private EGLDisplay mEGLDisplay = EGL14.EGL_NO_DISPLAY;
     private EGLConfig mEGLConfig;
     private int mEGLVersion = 2;
 
@@ -58,8 +58,8 @@ public class GLContext {
                 EGL14.EGL_GREEN_SIZE, 8,
                 EGL14.EGL_BLUE_SIZE, 8,
                 EGL14.EGL_ALPHA_SIZE, 8,
-                EGL14.EGL_DEPTH_SIZE, 16,
-                EGL14.EGL_STENCIL_SIZE, 8,
+//                EGL14.EGL_DEPTH_SIZE, 16,
+//                EGL14.EGL_STENCIL_SIZE, 8,
                 EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
                 EGL_RECORDABLE_ANDROID, 1,
                 EGL14.EGL_NONE

@@ -2,12 +2,10 @@ package io.github.leonhover.videorecorder.samples;
 
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
-import android.support.v7.app.AppCompatActivity;
+import android.opengl.EGL14;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
-import android.view.View;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 
@@ -15,8 +13,7 @@ import java.io.IOException;
 
 import io.github.leonhover.videorecorder.camera.CameraView;
 import io.github.leonhover.videorecorder.pub.Profile;
-import io.github.leonhover.videorecorder.recorder.VideoRecorder;
-import io.github.leonhover.videorecorder.recorder.android.AndroidRecorder;
+import io.github.leonhover.videorecorder.recorder.mediacodec.MediaCodecSyncRecorder;
 
 public class RecordingActivity extends AppCompatActivity implements CameraView.CameraSurfaceListener {
 
@@ -28,7 +25,8 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
     private CameraView mCameraView;
     private CheckBox mRecordingControl;
 
-    private AndroidRecorder mVideoRecorder;
+//    private MediaCodecRecorder mVideoRecorder;
+    private MediaCodecSyncRecorder mVideoRecorder;
 
     private boolean isSurfaceReady = false;
 
@@ -40,25 +38,26 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         mCameraView.setCameraSurfaceListener(this);
         mRecordingControl = (CheckBox) findViewById(R.id.recording_control);
         mRecordingControl.setOnCheckedChangeListener(mControlCheck);
-        mVideoRecorder = new AndroidRecorder();
+        mVideoRecorder = new MediaCodecSyncRecorder();
 
     }
 
-
     private void startRecording() {
+        Log.d(TAG, "startRecording");
         if (isSurfaceReady) {
-            mVideoRecorder.reset();
             mVideoRecorder.setOutputFile(TEST_VIDEO_RECORDER_OUTPUT);
             Profile.Builder builder = new Profile.Builder();
             mVideoRecorder.setProfile(builder.build());
-            mVideoRecorder.setCamera(mCamera);
+//            mVideoRecorder.setCamera(mCamera);
             mVideoRecorder.prepare();
             mCamera.unlock();
+            mCameraView.setOutputSurface(mVideoRecorder.getInputSurface());
             mVideoRecorder.start();
         }
     }
 
     private void stopRecording() {
+        Log.d(TAG, "stopRecording");
         mVideoRecorder.stop();
         mCamera.lock();
     }
@@ -98,6 +97,7 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
     @Override
     public void onCameraSurfaceCreate(SurfaceTexture surfaceTexture) {
         Log.d(TAG, "onCameraSurfaceCreate");
+        mVideoRecorder.setShareGlContext(EGL14.eglGetCurrentContext());
         mCamera = Camera.open();
         Camera.Parameters parameters = mCamera.getParameters();
         parameters.setPreviewSize(640, 480);
@@ -124,5 +124,10 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         isSurfaceReady = false;
         mCamera.stopPreview();
         mCamera.release();
+    }
+
+    @Override
+    public void onCameraSurfaceUpdate(SurfaceTexture surfaceTexture,int textureId) {
+        mVideoRecorder.updateInputSurface(surfaceTexture,textureId);
     }
 }

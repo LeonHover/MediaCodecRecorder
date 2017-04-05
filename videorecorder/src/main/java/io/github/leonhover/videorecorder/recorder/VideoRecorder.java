@@ -23,10 +23,6 @@ public abstract class VideoRecorder {
     protected String mPath;
     protected Profile mProfile;
 
-    public VideoRecorder() {
-
-    }
-
     public void setProfile(Profile profile) {
         this.mProfile = profile;
     }

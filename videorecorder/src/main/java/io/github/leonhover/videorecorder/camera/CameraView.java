@@ -2,15 +2,22 @@ package io.github.leonhover.videorecorder.camera;
 
 import android.content.Context;
 import android.graphics.SurfaceTexture;
+import android.opengl.EGL14;
+import android.opengl.EGLSurface;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.Surface;
+
+import java.util.Arrays;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+import io.github.leonhover.videorecorder.opengl.GLContext;
 import io.github.leonhover.videorecorder.opengl.GLDrawer;
+import io.github.leonhover.videorecorder.opengl.GLSurface;
 
 /**
  * 相机预览控件
@@ -57,6 +64,12 @@ public class CameraView extends GLSurfaceView {
     }
 
 
+    private GLContext mGLContext;
+    private GLSurface mOutputGLSurface;
+    private GLDrawer mOutputDrawer;
+
+    private Surface mOutputSurface;
+
     private class CameraRenderer implements Renderer {
 
         private static final String TAG = "CameraRenderer";
@@ -71,12 +84,12 @@ public class CameraView extends GLSurfaceView {
         public void onSurfaceCreated(GL10 gl, EGLConfig config) {
             Log.d(TAG, "onSurfaceCreated");
             mGLDrawer = new GLDrawer();
+
             mTextureId = mGLDrawer.createTexture();
             mSurfaceTexture = new SurfaceTexture(mTextureId);
             mSurfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
                 @Override
                 public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-                    Log.d(TAG, "onFrameAvailable");
                     requestRender();
                 }
             });
@@ -96,13 +109,46 @@ public class CameraView extends GLSurfaceView {
 
         @Override
         public void onDrawFrame(GL10 gl) {
-            Log.d(TAG, "onDrawFrame");
             mSurfaceTexture.updateTexImage();
-            // get texture matrix
+            float[] mat = new float[16];
+            mSurfaceTexture.getTransformMatrix(mat);
+            if (mCameraSurfaceListener != null) {
+                mCameraSurfaceListener.onCameraSurfaceUpdate(mSurfaceTexture, mTextureId);
+            }
+
             mSurfaceTexture.getTransformMatrix(mSTMatrix);
+
             mGLDrawer.draw(mTextureId, mMvpMatrix, mSTMatrix);
+
         }
 
+    }
+
+
+    public void setOutputSurface(final Surface surface) {
+        Log.d(TAG, "setOutputSurface " + surface);
+//        queueEvent(new Runnable() {
+//            @Override
+//            public void run() {
+//                mOutputSurface = surface;
+//                Log.d(TAG, "setOutputSurface" + Thread.currentThread().getName());
+//                if (mGLContext == null) {
+//                    mGLContext = new GLContext(EGL14.eglGetCurrentContext());
+//                    Log.d(TAG, "GLContext");
+//                    if (mOutputGLSurface == null) {
+//                        mOutputGLSurface = new GLSurface(mGLContext);
+//                        mOutputGLSurface.createSurface(mOutputSurface);
+//                        Log.d(TAG, "createSurface");
+//                    }
+//
+//                    Log.d(TAG, "makeCurrent");
+//                    mOutputGLSurface.makeCurrent();
+//                    if (mOutputDrawer == null) {
+//                        mOutputDrawer = new GLDrawer();
+//                    }
+//                }
+//            }
+//        });
     }
 
     public interface CameraSurfaceListener {
@@ -111,5 +157,7 @@ public class CameraView extends GLSurfaceView {
         void onCameraSurfaceChanged(SurfaceTexture surfaceTexture, int width, int height);
 
         void onCameraSurfaceDestroy(SurfaceTexture surfaceTexture);
+
+        void onCameraSurfaceUpdate(SurfaceTexture surfaceTexture, int textureId);
     }
 }

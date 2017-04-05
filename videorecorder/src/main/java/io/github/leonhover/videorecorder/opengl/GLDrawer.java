@@ -150,12 +150,13 @@ public class GLDrawer {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(mTextureTarget, textureId);
 
-        // Copy the model / view / projection matrix over.
-        GLES20.glUniformMatrix4fv(muMVPMatrixLoc, 1, false, mvpMatrix, 0);
-        GLUtil.checkGlError("glUniformMatrix4fv");
 
         // Copy the texture transformation matrix over.
         GLES20.glUniformMatrix4fv(muTexMatrixLoc, 1, false, texMatrix, 0);
+        GLUtil.checkGlError("glUniformMatrix4fv");
+
+        // Copy the model / view / projection matrix over.
+        GLES20.glUniformMatrix4fv(muMVPMatrixLoc, 1, false, mvpMatrix, 0);
         GLUtil.checkGlError("glUniformMatrix4fv");
 
         // Enable the "aPosition" vertex attribute.
