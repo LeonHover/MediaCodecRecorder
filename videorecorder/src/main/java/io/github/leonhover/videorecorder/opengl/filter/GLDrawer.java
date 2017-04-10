@@ -8,7 +8,7 @@ import android.util.Log;
 
 import java.nio.FloatBuffer;
 
-import io.github.leonhover.videorecorder.utils.GLUtil;
+import io.github.leonhover.videorecorder.opengl.GLUtil;
 
 /**
  * Created by wangzongliang on 17-3-29.
@@ -36,18 +36,28 @@ public class GLDrawer {
                     "void main() {\n" +
                     "    gl_FragColor = texture2D(sTexture, vTextureCoord);\n" +
                     "}\n";
+//    private static final float FULL_RECTANGLE_COORDS[] = {
+//            -1.0f, -1.0f,   // 0 bottom left
+//            1.0f, -1.0f,   // 1 bottom right
+//            -1.0f, 1.0f,   // 2 top left
+//            1.0f, 1.0f,   // 3 top right
+//    };
     private static final float FULL_RECTANGLE_COORDS[] = {
             -1.0f, -1.0f,   // 0 bottom left
             1.0f, -1.0f,   // 1 bottom right
             -1.0f, 1.0f,   // 2 top left
             1.0f, 1.0f,   // 3 top right
     };
+
+
+
     private static final float FULL_RECTANGLE_TEX_COORDS[] = {
             0.0f, 0.0f,     // 0 bottom left
             1.0f, 0.0f,     // 1 bottom right
             0.0f, 1.0f,     // 2 top left
             1.0f, 1.0f      // 3 top right*/
     };
+
 
 
     private static final FloatBuffer FULL_RECTANGLE_BUF =
@@ -79,7 +89,7 @@ public class GLDrawer {
         mVertexCount = FULL_RECTANGLE_COORDS.length / mCoordsPerVertex; //4
         mTexCoordStride = 2 * SIZEOF_FLOAT; //8
 
-        hProgram = GLUtil.createProgram(VERTEX_SHADER, FRAGMENT_SHADER);
+        hProgram = GLUtil.loadProgram(VERTEX_SHADER, FRAGMENT_SHADER);
         mTextureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
 
         // get locations of attributes and uniforms
@@ -102,11 +112,9 @@ public class GLDrawer {
     public int createTexture() {
         int[] textures = new int[1];
         GLES20.glGenTextures(1, textures, 0);
-        GLUtil.checkGlError("glGenTextures");
 
         int texId = textures[0];
         GLES20.glBindTexture(mTextureTarget, texId);
-        GLUtil.checkGlError("glBindTexture " + texId);
 
         GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER,
                 GLES20.GL_NEAREST);
@@ -116,7 +124,6 @@ public class GLDrawer {
                 GLES20.GL_CLAMP_TO_EDGE);
         GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T,
                 GLES20.GL_CLAMP_TO_EDGE);
-        GLUtil.checkGlError("glTexParameter");
 
         return texId;
     }
@@ -140,11 +147,8 @@ public class GLDrawer {
      * @param texMatrix texture matrix if this is null, the last one use(we don't check size of this array and needs at least 16 of float)
      */
     public void draw(final int textureId, final float[] mvpMatrix, final float[] texMatrix) {
-        GLUtil.checkGlError("draw start");
-
         // Select the program.
         GLES20.glUseProgram(hProgram);
-        GLUtil.checkGlError("glUseProgram");
 
         // Set the texture.
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -153,39 +157,31 @@ public class GLDrawer {
 
         // Copy the texture transformation matrix over.
         GLES20.glUniformMatrix4fv(muTexMatrixLoc, 1, false, texMatrix, 0);
-        GLUtil.checkGlError("glUniformMatrix4fv");
 
         // Copy the model / view / projection matrix over.
         GLES20.glUniformMatrix4fv(muMVPMatrixLoc, 1, false, mvpMatrix, 0);
-        GLUtil.checkGlError("glUniformMatrix4fv");
 
         // Enable the "aPosition" vertex attribute.
         GLES20.glEnableVertexAttribArray(maPositionLoc);
-        GLUtil.checkGlError("glEnableVertexAttribArray");
 
         // Connect vertexBuffer to "aPosition".
         GLES20.glVertexAttribPointer(maPositionLoc, mCoordsPerVertex,
                 GLES20.GL_FLOAT, false, mVertexStride, FULL_RECTANGLE_BUF);
-        GLUtil.checkGlError("glVertexAttribPointer");
 
         // Enable the "aTextureCoord" vertex attribute.
         GLES20.glEnableVertexAttribArray(maTextureCoordLoc);
-        GLUtil.checkGlError("glEnableVertexAttribArray");
 
         // Connect texBuffer to "aTextureCoord".
         GLES20.glVertexAttribPointer(maTextureCoordLoc, mCoordsPerVertex,
                 GLES20.GL_FLOAT, false, mTexCoordStride, FULL_RECTANGLE_TEX_BUF);
-        GLUtil.checkGlError("glVertexAttribPointer");
 
         // Draw the rect.
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, mVertexCount);
-        GLUtil.checkGlError("glDrawArrays");
 
         // Done -- disable vertex array, texture, and program.
         GLES20.glDisableVertexAttribArray(maPositionLoc);
         GLES20.glDisableVertexAttribArray(maTextureCoordLoc);
         GLES20.glBindTexture(mTextureTarget, 0);
-        GLES20.glUseProgram(0);
     }
 
 }
