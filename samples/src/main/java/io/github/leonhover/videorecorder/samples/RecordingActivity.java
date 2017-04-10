@@ -10,6 +10,7 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton;
 
 import java.io.IOException;
+import java.util.List;
 
 import io.github.leonhover.videorecorder.camera.CameraView;
 import io.github.leonhover.videorecorder.pub.Profile;
@@ -25,7 +26,7 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
     private CameraView mCameraView;
     private CheckBox mRecordingControl;
 
-//    private MediaCodecRecorder mVideoRecorder;
+    //    private MediaCodecRecorder mVideoRecorder;
     private MediaCodecSyncRecorder mVideoRecorder;
 
     private boolean isSurfaceReady = false;
@@ -35,6 +36,7 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_recording);
         mCameraView = (CameraView) findViewById(R.id.surfaceView);
+        mCameraView.setRatio(1.0f);
         mCameraView.setCameraSurfaceListener(this);
         mRecordingControl = (CheckBox) findViewById(R.id.recording_control);
         mRecordingControl.setOnCheckedChangeListener(mControlCheck);
@@ -42,16 +44,17 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
 
     }
 
+    private int count = 0;
+
     private void startRecording() {
         Log.d(TAG, "startRecording");
         if (isSurfaceReady) {
-            mVideoRecorder.setOutputFile(TEST_VIDEO_RECORDER_OUTPUT);
+            mVideoRecorder.setOutputFile("/sdcard/videorecorder_" + count + ".mp4");
             Profile.Builder builder = new Profile.Builder();
             mVideoRecorder.setProfile(builder.build());
 //            mVideoRecorder.setCamera(mCamera);
             mVideoRecorder.prepare();
             mCamera.unlock();
-            mCameraView.setOutputSurface(mVideoRecorder.getInputSurface());
             mVideoRecorder.start();
         }
     }
@@ -100,9 +103,18 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         mVideoRecorder.setShareGlContext(EGL14.eglGetCurrentContext());
         mCamera = Camera.open();
         Camera.Parameters parameters = mCamera.getParameters();
+        parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
+        List<Camera.Size> previewSizes = parameters.getSupportedPreviewSizes();
+
+        for (Camera.Size size : previewSizes) {
+            Log.d(TAG, "preview size supported:(" + size.width + "," + size.height + ")");
+        }
+
         parameters.setPreviewSize(640, 480);
-        parameters.setRecordingHint(true);
+        mCameraView.setPreviewRotation(90);
+        mCameraView.setPreviewSize(640, 480);
         try {
+            mCamera.setParameters(parameters);
             mCamera.setPreviewTexture(surfaceTexture);
             mCamera.setDisplayOrientation(90);
             mCamera.startPreview();
@@ -127,7 +139,7 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
     }
 
     @Override
-    public void onCameraSurfaceUpdate(SurfaceTexture surfaceTexture,int textureId) {
-        mVideoRecorder.updateInputSurface(surfaceTexture,textureId);
+    public void onCameraSurfaceUpdate(SurfaceTexture surfaceTexture, int textureId) {
+        mVideoRecorder.updateInputSurface(surfaceTexture, textureId);
     }
 }

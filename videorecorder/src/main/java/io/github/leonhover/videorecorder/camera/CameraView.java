@@ -1,36 +1,47 @@
 package io.github.leonhover.videorecorder.camera;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.SurfaceTexture;
-import android.opengl.EGL14;
-import android.opengl.EGLSurface;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.view.Surface;
+import android.view.SurfaceHolder;
 
-import java.util.Arrays;
+import java.lang.ref.WeakReference;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-import io.github.leonhover.videorecorder.opengl.GLContext;
-import io.github.leonhover.videorecorder.opengl.GLDrawer;
-import io.github.leonhover.videorecorder.opengl.GLSurface;
+import io.github.leonhover.videorecorder.R;
+import io.github.leonhover.videorecorder.opengl.filter.GLDrawer;
 
 /**
  * 相机预览控件
  * Created by wangzongliang on 17-3-29.
  */
 
-public class CameraView extends GLSurfaceView {
+public class CameraView extends GLSurfaceView implements SurfaceTexture.OnFrameAvailableListener {
 
     private static final String TAG = "CameraView";
+
+    private final static float LAYOUT_RATIO_NONE = 0.0f;
+
+    private final static int PREVIEW_ROTATION_0 = 0;
+    private final static int PREVIEW_ROTATION_90 = 90;
+    private final static int PREVIEW_ROTATION_180 = 180;
+    private final static int PREVIEW_ROTATION_270 = 270;
 
     private CameraRenderer mRenderer;
     protected SurfaceTexture mSurfaceTexture;
     private CameraSurfaceListener mCameraSurfaceListener;
+    //预览大小
+    private int mPreviewWidth = 0;
+    private int mPreviewHeight = 0;
+    private int mPreviewRotation = 0;
+    private GLDrawer mGLDrawer;
+    private float mLayoutRatio = LAYOUT_RATIO_NONE;
 
     public CameraView(Context context) {
         this(context, null);
@@ -38,11 +49,21 @@ public class CameraView extends GLSurfaceView {
 
     public CameraView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        mRenderer = new CameraRenderer();
-        setEGLContextClientVersion(2);    // GLES 2.0, API >= 8
+
+        TypedArray typedArray = null;
+
+        try {
+            typedArray = context.obtainStyledAttributes(attrs, R.styleable.CameraView);
+            mLayoutRatio = typedArray.getFloat(R.styleable.CameraView_layout_ratio, LAYOUT_RATIO_NONE);
+        } finally {
+            if (typedArray != null) {
+                typedArray.recycle();
+            }
+        }
+
+        mRenderer = new CameraRenderer(this);
+        setEGLContextClientVersion(2);
         setRenderer(mRenderer);
-        // the frequency of refreshing of camera preview is at most 15 fps
-        // and RENDERMODE_WHEN_DIRTY is better to reduce power consumption
         setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
     }
 
@@ -51,104 +72,173 @@ public class CameraView extends GLSurfaceView {
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
+    public void surfaceCreated(SurfaceHolder holder) {
+        super.surfaceCreated(holder);
     }
 
     @Override
-    public void onPause() {
+    public void surfaceDestroyed(SurfaceHolder holder) {
+        super.surfaceDestroyed(holder);
+        mSurfaceTexture.setOnFrameAvailableListener(null);
         if (this.mCameraSurfaceListener != null) {
             this.mCameraSurfaceListener.onCameraSurfaceDestroy(mSurfaceTexture);
         }
-        super.onPause();
+        this.mGLDrawer.release();
     }
 
+    @Override
+    public void onFrameAvailable(SurfaceTexture surfaceTexture) {
+        requestRender();
+    }
 
-    private GLContext mGLContext;
-    private GLSurface mOutputGLSurface;
-    private GLDrawer mOutputDrawer;
-
-    private Surface mOutputSurface;
-
-    private class CameraRenderer implements Renderer {
+    private static class CameraRenderer implements Renderer {
 
         private static final String TAG = "CameraRenderer";
-
-        private GLDrawer mGLDrawer;
+        //纹理ID
         private int mTextureId;
-
+        //纹理坐标矩阵
         private final float[] mSTMatrix = new float[16];
+        //坐标转换矩阵
         private final float[] mMvpMatrix = new float[16];
+
+        private WeakReference<CameraView> mCameraViewRef;
+
+        public CameraRenderer(CameraView cameraView) {
+            this.mCameraViewRef = new WeakReference<CameraView>(cameraView);
+        }
 
         @Override
         public void onSurfaceCreated(GL10 gl, EGLConfig config) {
             Log.d(TAG, "onSurfaceCreated");
-            mGLDrawer = new GLDrawer();
 
-            mTextureId = mGLDrawer.createTexture();
-            mSurfaceTexture = new SurfaceTexture(mTextureId);
-            mSurfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
-                @Override
-                public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-                    requestRender();
+            final CameraView cameraView = mCameraViewRef.get();
+            if (cameraView != null) {
+                cameraView.mGLDrawer = new GLDrawer();
+
+                Matrix.setIdentityM(mMvpMatrix, 0);
+                mTextureId = cameraView.mGLDrawer.createTexture();
+                cameraView.mSurfaceTexture = new SurfaceTexture(mTextureId);
+                cameraView.mSurfaceTexture.setOnFrameAvailableListener(cameraView);
+                if (cameraView.mCameraSurfaceListener != null) {
+                    cameraView.mCameraSurfaceListener.onCameraSurfaceCreate(cameraView.mSurfaceTexture);
                 }
-            });
-            Matrix.setIdentityM(mMvpMatrix, 0);
-            if (mCameraSurfaceListener != null) {
-                mCameraSurfaceListener.onCameraSurfaceCreate(mSurfaceTexture);
             }
         }
 
         @Override
         public void onSurfaceChanged(GL10 gl, int width, int height) {
-            Log.d(TAG, "onSurfaceChanged");
-            if (mCameraSurfaceListener != null) {
-                mCameraSurfaceListener.onCameraSurfaceChanged(mSurfaceTexture, width, height);
+            Log.d(TAG, "onSurfaceChanged " + "width:" + width + ",height:" + height);
+            updateViewPort();
+            final CameraView cameraView = mCameraViewRef.get();
+            if (cameraView != null) {
+                if (cameraView.mCameraSurfaceListener != null) {
+                    cameraView.mCameraSurfaceListener.onCameraSurfaceChanged(cameraView.mSurfaceTexture, width, height);
+                }
             }
         }
 
         @Override
         public void onDrawFrame(GL10 gl) {
-            mSurfaceTexture.updateTexImage();
-            float[] mat = new float[16];
-            mSurfaceTexture.getTransformMatrix(mat);
-            if (mCameraSurfaceListener != null) {
-                mCameraSurfaceListener.onCameraSurfaceUpdate(mSurfaceTexture, mTextureId);
+            final CameraView cameraView = mCameraViewRef.get();
+            if (cameraView != null) {
+                cameraView.mSurfaceTexture.updateTexImage();
+                if (cameraView.mCameraSurfaceListener != null) {
+                    cameraView.mCameraSurfaceListener.onCameraSurfaceUpdate(cameraView.mSurfaceTexture, mTextureId);
+                }
+
+                cameraView.mSurfaceTexture.getTransformMatrix(mSTMatrix);
+
+                cameraView.mGLDrawer.draw(mTextureId, mSTMatrix);
             }
 
-            mSurfaceTexture.getTransformMatrix(mSTMatrix);
+        }
 
-            mGLDrawer.draw(mTextureId, mMvpMatrix, mSTMatrix);
+        public void updateViewPort() {
+            final CameraView cameraView = mCameraViewRef.get();
+            if (cameraView != null) {
+                final int viewWidth = cameraView.getWidth();
+                final int viewHeight = cameraView.getHeight();
+                final int previewWidth = cameraView.mPreviewWidth;
+                final int previewHeight = cameraView.mPreviewHeight;
 
+                //CenterCrop
+                float scaleX = 1.0f;
+                float scaleY = 1.0f;
+                final double previewRatio = previewWidth * 1.0f / previewHeight;
+                final double viewRatio = viewWidth * 1.0f / viewHeight;
+
+                if (previewRatio < viewRatio) {
+                    scaleY = (float) (previewHeight * 1.0f / (previewWidth / viewRatio));
+                } else {
+                    scaleX = (float) (previewWidth * 1.0f / (previewHeight * viewRatio));
+                }
+
+                Log.d(TAG, "scaleX:" + scaleX + ",scaleY:" + scaleY + ",previewRatio:" + previewRatio + ",viewRatio:" + viewRatio);
+                Matrix.setIdentityM(mMvpMatrix, 0);
+                Matrix.scaleM(mMvpMatrix, 0, scaleX, scaleY, 1.0f);
+
+                if (cameraView.mGLDrawer != null) {
+                    cameraView.mGLDrawer.setMvpMatrix(mMvpMatrix);
+                }
+
+            }
         }
 
     }
 
+    /**
+     * 设置预览的旋转角度，请在调用{link setPreviewSize}前调用，否则会抛出IllegalStateException.
+     *
+     * @param rotation 旋转角度
+     */
+    public void setPreviewRotation(int rotation) {
+        this.mPreviewRotation = rotation;
+        if (this.mPreviewWidth * this.mPreviewHeight != 0) {
+            throw new IllegalStateException("please invoke setPreviewRotation before setPreviewSize");
+        }
+    }
 
-    public void setOutputSurface(final Surface surface) {
-        Log.d(TAG, "setOutputSurface " + surface);
-//        queueEvent(new Runnable() {
-//            @Override
-//            public void run() {
-//                mOutputSurface = surface;
-//                Log.d(TAG, "setOutputSurface" + Thread.currentThread().getName());
-//                if (mGLContext == null) {
-//                    mGLContext = new GLContext(EGL14.eglGetCurrentContext());
-//                    Log.d(TAG, "GLContext");
-//                    if (mOutputGLSurface == null) {
-//                        mOutputGLSurface = new GLSurface(mGLContext);
-//                        mOutputGLSurface.createSurface(mOutputSurface);
-//                        Log.d(TAG, "createSurface");
-//                    }
-//
-//                    Log.d(TAG, "makeCurrent");
-//                    mOutputGLSurface.makeCurrent();
-//                    if (mOutputDrawer == null) {
-//                        mOutputDrawer = new GLDrawer();
-//                    }
-//                }
-//            }
-//        });
+    /**
+     * 设置预览大小
+     * @param width 宽度
+     * @param height 高度
+     */
+    public void setPreviewSize(int width, int height) {
+        switch (this.mPreviewRotation) {
+            case PREVIEW_ROTATION_90:
+            case PREVIEW_ROTATION_270:
+                this.mPreviewHeight = width;
+                this.mPreviewWidth = height;
+                break;
+            case PREVIEW_ROTATION_0:
+            case PREVIEW_ROTATION_180:
+                this.mPreviewWidth = width;
+                this.mPreviewHeight = height;
+                break;
+        }
+
+        queueEvent(new Runnable() {
+            @Override
+            public void run() {
+                mRenderer.updateViewPort();
+            }
+        });
+    }
+
+    public void setRatio(float ratio) {
+        this.mLayoutRatio = ratio;
+        requestLayout();
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (mLayoutRatio > 0) {
+            int widthSpec = MeasureSpec.getSize(widthMeasureSpec);
+            int newHeightMeasureSpec = MeasureSpec.makeMeasureSpec((int) (widthSpec / mLayoutRatio), MeasureSpec.EXACTLY);
+            super.onMeasure(widthMeasureSpec, newHeightMeasureSpec);
+        } else {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        }
     }
 
     public interface CameraSurfaceListener {

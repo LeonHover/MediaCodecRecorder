@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import io.github.leonhover.videorecorder.opengl.GLContext;
-import io.github.leonhover.videorecorder.opengl.GLDrawer;
+import io.github.leonhover.videorecorder.opengl.filter.GLDrawer;
 import io.github.leonhover.videorecorder.opengl.GLSurface;
 import io.github.leonhover.videorecorder.recorder.VideoRecorder;
 
@@ -66,6 +66,7 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
         mEncodingThread.start();
         mEncodingHandler = new Handler(mEncodingThread.getLooper(), this);
 
+        mBufferInfo = new MediaCodec.BufferInfo();
         Log.d(TAG, "MediaCodecSyncRecorder construct end");
     }
 
@@ -131,11 +132,12 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
         switch (msg.what) {
             case MSG_ENCODER_PREPARE:
 
+
                 //组建VideoFormat
                 MediaFormat mVideoFormat = MediaFormat.createVideoFormat(MIME_TYPE_AVC, 480, 480);
                 mVideoFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1024_000);
-                mVideoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
-                mVideoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
+                mVideoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 24);
+                mVideoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
                 mVideoFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
 
                 //选择合适的Codec
@@ -155,6 +157,8 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
                     }
                 }
 
+                codecName = "OMX.qcom.video.encoder.avc";
+
                 if (TextUtils.isEmpty(codecName)) {
                     Log.e(TAG, "codecName is empty!!!");
                 }
@@ -168,7 +172,7 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
                     e.printStackTrace();
                 }
 
-                mBufferInfo = new MediaCodec.BufferInfo();
+
                 try {
                     mMediaMuxer = new MediaMuxer(mPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
                 } catch (IOException e) {
@@ -177,7 +181,9 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
 
                 mGLContext = new GLContext(this.mShareGLContext);
                 mGLSurface = new GLSurface(mGLContext);
-                mGLSurface.createSurface(mInputSurface);
+                if (mInputSurface != null) {
+                    mGLSurface.createSurface(mInputSurface);
+                }
                 mGLSurface.makeCurrent();
                 mGLDrawer = new GLDrawer();
                 isPrepared = true;
@@ -193,10 +199,10 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
                 isPrepared = false;
                 isEncoding = false;
                 mMediaCodec.signalEndOfInputStream();
+                mMediaCodec.flush();
                 mMediaMuxer.stop();
                 mMediaMuxer.release();
                 mMediaCodec.stop();
-                mMediaCodec.release();
                 break;
             case MSG_ENCODER_INPUT_SURFACE_UPDATE:
                 if (isEncoding) {
@@ -205,15 +211,8 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
                     int textureId = msg.arg1;
                     surfaceTexture.getTransformMatrix(mtx);
                     mGLSurface.makeCurrent();
-                    Matrix.setIdentityM(mtx, 0);
                     mGLDrawer.draw(textureId, mvpMtx, mtx);
                     mGLSurface.setPresentationTime(System.nanoTime());
-//                    try {
-//                        File png = new File("/sdcard/xiaokaxiu/" + System.currentTimeMillis() + ".png");
-//                        mGLSurface.saveFrame(png);
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
                     mGLSurface.swapBuffers();
                     encode();
                 }
@@ -267,7 +266,6 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
 
                     }
                     Log.d(TAG, "writeSampleData");
-//                    prevOutputPTSUs = mBufferInfo.presentationTimeUs;
                 }
 
                 mMediaCodec.releaseOutputBuffer(outputBufferIndex, false);

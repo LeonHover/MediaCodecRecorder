@@ -1,4 +1,4 @@
-package io.github.leonhover.videorecorder.opengl;
+package io.github.leonhover.videorecorder.opengl.filter;
 
 import android.annotation.TargetApi;
 import android.opengl.GLES11Ext;
@@ -36,28 +36,18 @@ public class GLDrawer {
                     "void main() {\n" +
                     "    gl_FragColor = texture2D(sTexture, vTextureCoord);\n" +
                     "}\n";
-//    private static final float FULL_RECTANGLE_COORDS[] = {
-//            -1.0f, -1.0f,   // 0 bottom left
-//            1.0f, -1.0f,   // 1 bottom right
-//            -1.0f, 1.0f,   // 2 top left
-//            1.0f, 1.0f,   // 3 top right
-//    };
     private static final float FULL_RECTANGLE_COORDS[] = {
             -1.0f, -1.0f,   // 0 bottom left
             1.0f, -1.0f,   // 1 bottom right
             -1.0f, 1.0f,   // 2 top left
             1.0f, 1.0f,   // 3 top right
     };
-
-
-
     private static final float FULL_RECTANGLE_TEX_COORDS[] = {
             0.0f, 0.0f,     // 0 bottom left
             1.0f, 0.0f,     // 1 bottom right
             0.0f, 1.0f,     // 2 top left
             1.0f, 1.0f      // 3 top right*/
     };
-
 
 
     private static final FloatBuffer FULL_RECTANGLE_BUF =
@@ -76,6 +66,8 @@ public class GLDrawer {
     private int muTexMatrixLoc;
     private int maPositionLoc;
     private int maTextureCoordLoc;
+
+    private float[] mMvpMatrix;
 
     private static final int SIZEOF_FLOAT = Float.SIZE / 8;
 
@@ -128,6 +120,10 @@ public class GLDrawer {
         return texId;
     }
 
+    public void setMvpMatrix(float[] mvpMatrix) {
+        this.mMvpMatrix = mvpMatrix;
+    }
+
     /**
      * Releases the program.
      * <p>
@@ -138,6 +134,10 @@ public class GLDrawer {
         Log.d(TAG, "deleting program " + hProgram);
         GLES20.glDeleteProgram(hProgram);
         hProgram = -1;
+    }
+
+    public void draw(final int textureId, final float[] texMatrix) {
+        draw(textureId, mMvpMatrix, texMatrix);
     }
 
     /**

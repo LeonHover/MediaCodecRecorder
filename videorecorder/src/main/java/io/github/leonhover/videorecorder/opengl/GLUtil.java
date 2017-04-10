@@ -1,4 +1,4 @@
-package io.github.leonhover.videorecorder.utils;
+package io.github.leonhover.videorecorder.opengl;
 
 import android.opengl.GLES20;
 import android.util.Log;
@@ -14,8 +14,6 @@ import java.nio.FloatBuffer;
 public class GLUtil {
 
     private static final String TAG = "GLUtil";
-
-    private static final int SIZEOF_FLOAT = 4;
 
     public static void checkGlError(String op) {
         int error = GLES20.glGetError();
@@ -33,25 +31,22 @@ public class GLUtil {
     }
 
 
-    public static int createProgram(String vertexSource, String fragmentSource) {
+    public static int loadProgram(String vertexSource, String fragmentSource) {
         int vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, vertexSource);
         if (vertexShader == 0) {
             return 0;
         }
-        int pixelShader = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentSource);
-        if (pixelShader == 0) {
+        int fragmentShader = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentSource);
+        if (fragmentShader == 0) {
             return 0;
         }
 
         int program = GLES20.glCreateProgram();
-        checkGlError("glCreateProgram");
         if (program == 0) {
             Log.e(TAG, "Could not create program");
         }
         GLES20.glAttachShader(program, vertexShader);
-        checkGlError("glAttachShader");
-        GLES20.glAttachShader(program, pixelShader);
-        checkGlError("glAttachShader");
+        GLES20.glAttachShader(program, fragmentShader);
         GLES20.glLinkProgram(program);
         int[] linkStatus = new int[1];
         GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linkStatus, 0);
@@ -61,7 +56,9 @@ public class GLUtil {
             GLES20.glDeleteProgram(program);
             program = 0;
         }
-        Log.i(TAG, "Created program " + program);
+
+        GLES20.glDeleteShader(vertexShader);
+        GLES20.glDeleteShader(fragmentShader);
         return program;
     }
 
@@ -72,7 +69,6 @@ public class GLUtil {
      */
     public static int loadShader(int shaderType, String source) {
         int shader = GLES20.glCreateShader(shaderType);
-        checkGlError("glCreateShader type=" + shaderType);
         GLES20.glShaderSource(shader, source);
         GLES20.glCompileShader(shader);
         int[] compiled = new int[1];
@@ -88,7 +84,7 @@ public class GLUtil {
 
     public static FloatBuffer createFloatBuffer(float[] coords) {
         // Allocate a direct ByteBuffer, using 4 bytes per float, and copy coords into it.
-        ByteBuffer bb = ByteBuffer.allocateDirect(coords.length * SIZEOF_FLOAT);
+        ByteBuffer bb = ByteBuffer.allocateDirect(coords.length * 4);
         bb.order(ByteOrder.nativeOrder());
         FloatBuffer fb = bb.asFloatBuffer();
         fb.put(coords);

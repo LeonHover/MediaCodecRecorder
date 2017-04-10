@@ -79,7 +79,6 @@ public class GLContext {
         };
 
         mEGLContext = EGL14.eglCreateContext(mEGLDisplay, mEGLConfig, eglContext, contextAttributes, 0);
-        checkEGLError("eglCreateContext");
     }
 
     public EGLSurface createEGLSurface(Object surface) {
@@ -94,7 +93,6 @@ public class GLContext {
         };
         EGLSurface eglSurface = EGL14.eglCreateWindowSurface(mEGLDisplay, mEGLConfig, surface,
                 surfaceAttributes, 0);
-        checkEGLError("eglCreateWindowSurface");
         if (eglSurface == null) {
             throw new RuntimeException("surface was null");
         }
@@ -110,7 +108,6 @@ public class GLContext {
         };
         EGLSurface eglSurface = EGL14.eglCreatePbufferSurface(mEGLDisplay, mEGLConfig,
                 surfaceAttributes, 0);
-        checkEGLError("eglCreatePbufferSurface");
         if (eglSurface == null) {
             throw new RuntimeException("surface was null");
         }

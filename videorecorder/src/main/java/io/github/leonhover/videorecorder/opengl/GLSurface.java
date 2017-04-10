@@ -15,8 +15,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import io.github.leonhover.videorecorder.utils.GLUtil;
-
 /**
  * Created by wangzongliang on 17-3-29.
  */
@@ -158,7 +156,6 @@ public class GLSurface {
         buf.order(ByteOrder.LITTLE_ENDIAN);
         GLES20.glReadPixels(0, 0, width, height,
                 GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
-        GLUtil.checkGlError("glReadPixels");
         buf.rewind();
 
         BufferedOutputStream bos = null;
