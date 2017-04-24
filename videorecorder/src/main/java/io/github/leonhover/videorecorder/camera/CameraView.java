@@ -15,7 +15,7 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 import io.github.leonhover.videorecorder.R;
-import io.github.leonhover.videorecorder.opengl.filter.GLDrawer;
+import io.github.leonhover.videorecorder.opengl.filter.GLSurfaceFilter;
 
 /**
  * 相机预览控件
@@ -40,7 +40,7 @@ public class CameraView extends GLSurfaceView implements SurfaceTexture.OnFrameA
     private int mPreviewWidth = 0;
     private int mPreviewHeight = 0;
     private int mPreviewRotation = 0;
-    private GLDrawer mGLDrawer;
+    private GLSurfaceFilter mGLSurfaceFilter;
     private float mLayoutRatio = LAYOUT_RATIO_NONE;
 
     public CameraView(Context context) {
@@ -83,7 +83,7 @@ public class CameraView extends GLSurfaceView implements SurfaceTexture.OnFrameA
         if (this.mCameraSurfaceListener != null) {
             this.mCameraSurfaceListener.onCameraSurfaceDestroy(mSurfaceTexture);
         }
-        this.mGLDrawer.release();
+        this.mGLSurfaceFilter.release();
     }
 
     @Override
@@ -113,10 +113,10 @@ public class CameraView extends GLSurfaceView implements SurfaceTexture.OnFrameA
 
             final CameraView cameraView = mCameraViewRef.get();
             if (cameraView != null) {
-                cameraView.mGLDrawer = new GLDrawer();
+                cameraView.mGLSurfaceFilter = new GLSurfaceFilter();
 
                 Matrix.setIdentityM(mMvpMatrix, 0);
-                mTextureId = cameraView.mGLDrawer.createTexture();
+                mTextureId = cameraView.mGLSurfaceFilter.createTexture();
                 cameraView.mSurfaceTexture = new SurfaceTexture(mTextureId);
                 cameraView.mSurfaceTexture.setOnFrameAvailableListener(cameraView);
                 if (cameraView.mCameraSurfaceListener != null) {
@@ -148,7 +148,7 @@ public class CameraView extends GLSurfaceView implements SurfaceTexture.OnFrameA
 
                 cameraView.mSurfaceTexture.getTransformMatrix(mSTMatrix);
 
-                cameraView.mGLDrawer.draw(mTextureId, mSTMatrix);
+                cameraView.mGLSurfaceFilter.draw(mTextureId, mSTMatrix);
             }
 
         }
@@ -177,8 +177,8 @@ public class CameraView extends GLSurfaceView implements SurfaceTexture.OnFrameA
                 Matrix.setIdentityM(mMvpMatrix, 0);
                 Matrix.scaleM(mMvpMatrix, 0, scaleX, scaleY, 1.0f);
 
-                if (cameraView.mGLDrawer != null) {
-                    cameraView.mGLDrawer.setMvpMatrix(mMvpMatrix);
+                if (cameraView.mGLSurfaceFilter != null) {
+                    cameraView.mGLSurfaceFilter.setMvpMatrix(mMvpMatrix);
                 }
 
             }

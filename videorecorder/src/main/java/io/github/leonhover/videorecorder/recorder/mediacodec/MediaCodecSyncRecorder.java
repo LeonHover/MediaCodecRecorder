@@ -21,8 +21,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import io.github.leonhover.videorecorder.opengl.GLContext;
-import io.github.leonhover.videorecorder.opengl.filter.GLDrawer;
 import io.github.leonhover.videorecorder.opengl.GLSurface;
+import io.github.leonhover.videorecorder.opengl.filter.GLSurfaceFilter;
 import io.github.leonhover.videorecorder.recorder.VideoRecorder;
 
 /**
@@ -101,23 +101,12 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
         updateSurfaceMsg.sendToTarget();
     }
 
-    @Override
-    public void pause() {
-
-    }
-
-    @Override
-    public void resume() {
-
-    }
-
-
     public void release() {
 
     }
 
     private GLContext mGLContext;
-    private GLDrawer mGLDrawer;
+    private GLSurfaceFilter mGLSurfaceFilter;
     private GLSurface mGLSurface;
 
     private EGLContext mShareGLContext;
@@ -136,7 +125,7 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
                 //组建VideoFormat
                 MediaFormat mVideoFormat = MediaFormat.createVideoFormat(MIME_TYPE_AVC, 480, 480);
                 mVideoFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1024_000);
-                mVideoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 24);
+                mVideoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
                 mVideoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
                 mVideoFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
 
@@ -185,7 +174,7 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
                     mGLSurface.createSurface(mInputSurface);
                 }
                 mGLSurface.makeCurrent();
-                mGLDrawer = new GLDrawer();
+                mGLSurfaceFilter = new GLSurfaceFilter();
                 isPrepared = true;
                 break;
             case MSG_ENCODER_START:
@@ -211,7 +200,7 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
                     int textureId = msg.arg1;
                     surfaceTexture.getTransformMatrix(mtx);
                     mGLSurface.makeCurrent();
-                    mGLDrawer.draw(textureId, mvpMtx, mtx);
+                    mGLSurfaceFilter.draw(textureId, mvpMtx, mtx);
                     mGLSurface.setPresentationTime(System.nanoTime());
                     mGLSurface.swapBuffers();
                     encode();
@@ -238,7 +227,7 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
 
         ByteBuffer[] outputBuffers = mMediaCodec.getOutputBuffers();
         while (isEncoding) {
-            int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 0);
+            int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 10);
             Log.d(TAG, "outputBufferIndex=" + outputBufferIndex + " flags:" + mBufferInfo.flags);
             if (outputBufferIndex >= 0) {
                 // outputBuffers[outputBufferId] is ready to be processed or rendered.
@@ -290,20 +279,4 @@ public class MediaCodecSyncRecorder extends VideoRecorder implements Handler.Cal
 
         }
     }
-
-//    private long prevOutputPTSUs = 0;
-//
-//    /**
-//     * get next encoding presentationTimeUs
-//     *
-//     * @return
-//     */
-//    protected long getPTSUs() {
-//        long result = System.nanoTime() / 1000L;
-//        // presentationTimeUs should be monotonic
-//        // otherwise muxer fail to write
-//        if (result < prevOutputPTSUs)
-//            result = (prevOutputPTSUs - result) + result;
-//        return result;
-//    }
 }

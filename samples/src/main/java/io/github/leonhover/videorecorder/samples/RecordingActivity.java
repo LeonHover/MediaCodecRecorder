@@ -14,7 +14,7 @@ import java.util.List;
 
 import io.github.leonhover.videorecorder.camera.CameraView;
 import io.github.leonhover.videorecorder.pub.Profile;
-import io.github.leonhover.videorecorder.recorder.mediacodec.MediaCodecSyncRecorder;
+import io.github.leonhover.videorecorder.recorder.mediacodec.MediaCodecRecorder;
 
 public class RecordingActivity extends AppCompatActivity implements CameraView.CameraSurfaceListener {
 
@@ -26,8 +26,8 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
     private CameraView mCameraView;
     private CheckBox mRecordingControl;
 
-    //    private MediaCodecRecorder mVideoRecorder;
-    private MediaCodecSyncRecorder mVideoRecorder;
+    private MediaCodecRecorder mVideoRecorder;
+//    private MediaCodecSyncRecorder mVideoRecorder;
 
     private boolean isSurfaceReady = false;
 
@@ -40,7 +40,7 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         mCameraView.setCameraSurfaceListener(this);
         mRecordingControl = (CheckBox) findViewById(R.id.recording_control);
         mRecordingControl.setOnCheckedChangeListener(mControlCheck);
-        mVideoRecorder = new MediaCodecSyncRecorder();
+        mVideoRecorder = new MediaCodecRecorder();
 
     }
 
@@ -63,6 +63,7 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         Log.d(TAG, "stopRecording");
         mVideoRecorder.stop();
         mCamera.lock();
+        count++;
     }
 
     private CheckBox.OnCheckedChangeListener mControlCheck = new CheckBox.OnCheckedChangeListener() {
@@ -100,7 +101,7 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
     @Override
     public void onCameraSurfaceCreate(SurfaceTexture surfaceTexture) {
         Log.d(TAG, "onCameraSurfaceCreate");
-        mVideoRecorder.setShareGlContext(EGL14.eglGetCurrentContext());
+//        mVideoRecorder.setShareGlContext(EGL14.eglGetCurrentContext());
         mCamera = Camera.open();
         Camera.Parameters parameters = mCamera.getParameters();
         parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
@@ -113,6 +114,8 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         parameters.setPreviewSize(640, 480);
         mCameraView.setPreviewRotation(90);
         mCameraView.setPreviewSize(640, 480);
+        mVideoRecorder.setPreviewSize(480, 640);
+        mVideoRecorder.createInputSurfaceWindow(EGL14.eglGetCurrentContext());
         try {
             mCamera.setParameters(parameters);
             mCamera.setPreviewTexture(surfaceTexture);
@@ -140,6 +143,7 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
 
     @Override
     public void onCameraSurfaceUpdate(SurfaceTexture surfaceTexture, int textureId) {
-        mVideoRecorder.updateInputSurface(surfaceTexture, textureId);
+        mVideoRecorder.updateInputSurfaceWindow(textureId, surfaceTexture);
+//        mVideoRecorder.updateInputSurface(surfaceTexture, textureId);
     }
 }

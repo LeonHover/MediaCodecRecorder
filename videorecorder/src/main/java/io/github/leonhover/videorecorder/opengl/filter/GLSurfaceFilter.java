@@ -14,7 +14,7 @@ import io.github.leonhover.videorecorder.opengl.GLUtil;
  * Created by wangzongliang on 17-3-29.
  */
 @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
-public class GLDrawer {
+public class GLSurfaceFilter {
 
     private static final String TAG = "GLDrawer";
 
@@ -75,7 +75,7 @@ public class GLDrawer {
      * Constructor
      * this should be called in GL context
      */
-    public GLDrawer() {
+    public GLSurfaceFilter() {
         mCoordsPerVertex = 2;
         mVertexStride = mCoordsPerVertex * SIZEOF_FLOAT; // 8
         mVertexCount = FULL_RECTANGLE_COORDS.length / mCoordsPerVertex; //4

@@ -90,20 +90,6 @@ public class AndroidRecorder extends VideoRecorder implements MediaRecorder.OnEr
         mMediaRecorder.stop();
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    @Override
-    public void pause() {
-        Log.d(TAG, "pause");
-        mMediaRecorder.pause();
-    }
-
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    @Override
-    public void resume() {
-        Log.d(TAG, "resume");
-        mMediaRecorder.resume();
-    }
-
     @Override
     public void release() {
         Log.d(TAG, "release");

@@ -39,10 +39,6 @@ public abstract class VideoRecorder {
 
     public abstract void stop();
 
-    public abstract void pause();
-
-    public abstract void resume();
-
     public abstract void release();
 
     protected final void notifyRecorderInfo(int info, int extra) {

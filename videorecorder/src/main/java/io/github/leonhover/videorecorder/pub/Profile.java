@@ -23,7 +23,7 @@ public class Profile {
 
         private int videoBitRate = 1024000;
         private int videoFrameRate = 15;
-        private int videoWidth = 640;
+        private int videoWidth = 480;
         private int videoHeight = 480;
 
         private int audioBitRate = 128000;
