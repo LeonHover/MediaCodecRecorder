@@ -57,7 +57,7 @@ public class AndroidRecorder extends VideoRecorder implements MediaRecorder.OnEr
             mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
             mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
             //配置音频
-            mMediaRecorder.setAudioChannels(mProfile.audioChannels);
+            mMediaRecorder.setAudioChannels(mProfile.audioChannelCount);
             mMediaRecorder.setAudioSamplingRate(mProfile.audioSamplingRate);
             mMediaRecorder.setAudioEncodingBitRate(mProfile.audioBitRate);
 
@@ -71,7 +71,7 @@ public class AndroidRecorder extends VideoRecorder implements MediaRecorder.OnEr
             mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
             mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
 
-            mMediaRecorder.setOrientationHint(mProfile.rotation);
+            mMediaRecorder.setOrientationHint(mProfile.orientationHint);
             mMediaRecorder.prepare();
         } catch (IOException e) {
             e.printStackTrace();

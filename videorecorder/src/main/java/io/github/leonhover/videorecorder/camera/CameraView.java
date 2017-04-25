@@ -193,7 +193,7 @@ public class CameraView extends GLSurfaceView implements SurfaceTexture.OnFrameA
      *
      * @param rotation 旋转角度
      */
-    public void setPreviewRotation(int rotation) {
+    void setPreviewRotation(int rotation) {
         this.mPreviewRotation = rotation;
         if (this.mPreviewWidth * this.mPreviewHeight != 0) {
             throw new IllegalStateException("please invoke setPreviewRotation before setPreviewSize");
@@ -206,18 +206,8 @@ public class CameraView extends GLSurfaceView implements SurfaceTexture.OnFrameA
      * @param height 高度
      */
     public void setPreviewSize(int width, int height) {
-        switch (this.mPreviewRotation) {
-            case PREVIEW_ROTATION_90:
-            case PREVIEW_ROTATION_270:
-                this.mPreviewHeight = width;
-                this.mPreviewWidth = height;
-                break;
-            case PREVIEW_ROTATION_0:
-            case PREVIEW_ROTATION_180:
-                this.mPreviewWidth = width;
-                this.mPreviewHeight = height;
-                break;
-        }
+        this.mPreviewWidth = width;
+        this.mPreviewHeight = height;
 
         queueEvent(new Runnable() {
             @Override

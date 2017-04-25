@@ -51,6 +51,8 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         if (isSurfaceReady) {
             mVideoRecorder.setOutputFile("/sdcard/videorecorder_" + count + ".mp4");
             Profile.Builder builder = new Profile.Builder();
+            builder.setVideoSize(480, 480);
+            builder.setVideoBitRate((int) (1 * 1024 * 1024));
             mVideoRecorder.setProfile(builder.build());
 //            mVideoRecorder.setCamera(mCamera);
             mVideoRecorder.prepare();
@@ -93,8 +95,6 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
     @Override
     protected void onDestroy() {
         super.onDestroy();
-
-        mVideoRecorder.stop();
         mVideoRecorder.release();
     }
 
@@ -111,15 +111,14 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
             Log.d(TAG, "preview size supported:(" + size.width + "," + size.height + ")");
         }
 
-        parameters.setPreviewSize(640, 480);
-        mCameraView.setPreviewRotation(90);
-        mCameraView.setPreviewSize(640, 480);
-        mVideoRecorder.setPreviewSize(480, 640);
         mVideoRecorder.createInputSurfaceWindow(EGL14.eglGetCurrentContext());
         try {
+            parameters.setPreviewSize(640, 480);
+            mCameraView.setPreviewSize(480, 640);
+            mVideoRecorder.setPreviewSize(480, 640);
             mCamera.setParameters(parameters);
             mCamera.setPreviewTexture(surfaceTexture);
-            mCamera.setDisplayOrientation(90);
+            mCamera.setDisplayOrientation(Profile.ORIENTATION_90);
             mCamera.startPreview();
         } catch (IOException e) {
             e.printStackTrace();
@@ -139,6 +138,9 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         isSurfaceReady = false;
         mCamera.stopPreview();
         mCamera.release();
+        if (mVideoRecorder.isRecording()) {
+            mVideoRecorder.stop();
+        }
     }
 
     @Override

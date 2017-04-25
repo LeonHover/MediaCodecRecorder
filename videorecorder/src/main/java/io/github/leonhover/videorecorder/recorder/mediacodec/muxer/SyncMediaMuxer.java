@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CountDownLatch;
 
 /**
+ * 线程安全的MediaMuxer，默认需要添加两个Track：视频和音频。
  * Created by wangzongliang on 2017/4/17.
  */
 

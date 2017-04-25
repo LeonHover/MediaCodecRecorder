@@ -7,6 +7,7 @@ import android.media.MediaFormat;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.util.Log;
 
 import java.io.IOException;
@@ -57,22 +58,42 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
         this.mEncodingHandler = new Handler(this.mEncodingThread.getLooper(), this);
     }
 
+    /**
+     * 设置音频编码器的回调
+     * @param callBack
+     */
     public void setCallBack(CallBack callBack) {
         this.mCallBack = callBack;
     }
 
+    /**
+     * 音频采样率
+     * @param sampleRate 采样率
+     */
     public void setSampleRate(int sampleRate) {
         this.mSampleRate = sampleRate;
     }
 
+    /**
+     * 音频码率
+     * @param bitRate 码率
+     */
     public void setBitRate(int bitRate) {
         this.mBitRate = bitRate;
     }
 
+    /**
+     * 声道数量
+     * @param count 数量
+     */
     public void setChannelCount(int count) {
         this.mChannelCount = count;
     }
 
+    /**
+     * 声道配置
+     * @param channelMask 声道配置
+     */
     public void setChannelMask(int channelMask) {
         this.mChannelMask = channelMask;
     }
@@ -89,6 +110,9 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
         mEncodingHandler.sendEmptyMessage(ENCODING_MSG_STOP);
     }
 
+    /**
+     * 释放资源
+     */
     public void release() {
 
         if (mMediaCodec != null) {
@@ -299,6 +323,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
                 Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED audio:" + mediaFormat.toString());
                 mTrackIndex = mMediaMuxer.addAudioTrack(mediaFormat);
                 mMediaMuxer.start();
+                Log.d(TAG, "mMediaMuxer.start() audio:");
             } else if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                 if (!isEOS) {
                     break;

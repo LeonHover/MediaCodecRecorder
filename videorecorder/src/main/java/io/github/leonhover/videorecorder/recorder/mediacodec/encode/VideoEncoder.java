@@ -60,6 +60,10 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
         mEncodingHandler = new Handler(mEncodingThread.getLooper(), this);
     }
 
+    /**
+     * 获取视频编码器的供输入用的Surface。需要在{@code prepare}后方可调用。
+     * @return Surface
+     */
     public Surface getInputSurface() {
         return this.mInputSurface;
     }
@@ -76,6 +80,9 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
         mEncodingHandler.sendEmptyMessage(ENCODING_MSG_STOP);
     }
 
+    /**
+     * 释放视频编码器
+     */
     public void release() {
         mEncodingHandler.removeCallbacksAndMessages(null);
         mEncodingThread.quitSafely();
@@ -85,33 +92,46 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
     }
 
+    /**
+     * 设定视频编码器的回调
+     * @param callBack 回调
+     */
     public void setCallBack(CallBack callBack) {
         this.mCallBack = callBack;
     }
 
+    /**
+     * 录制的视频大小
+     * @param width 宽
+     * @param mHeight 高
+     */
     public void setVideoSize(int width, int mHeight) {
         this.mWidth = width;
         this.mHeight = mHeight;
     }
 
+    /**
+     * 视频帧率
+     * @param frameRate 帧率，单位为frame/sec
+     */
     public void setFrameRate(int frameRate) {
         this.mFrameRate = frameRate;
     }
 
+    /**
+     * 视频码率
+     * @param bitRate 码率，单位为bit/sec
+     */
     public void setBitRate(int bitRate) {
         this.mBitRate = bitRate;
     }
 
+    /**
+     * 关键帧间隔
+     * @param interval 间隔时间，单位秒
+     */
     public void setIFrameInterval(int interval) {
         this.mIFrameInterval = interval;
-    }
-
-    public void setTrackIndex(int trackIndex) {
-        this.mTrackIndex = trackIndex;
-    }
-
-    public MediaFormat getOutputFormat() {
-        return mMediaCodec.getOutputFormat();
     }
 
     @Override
@@ -239,8 +259,8 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
                 MediaFormat mediaFormat = mMediaCodec.getOutputFormat();
                 Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED video:" + mediaFormat.toString());
                 mTrackIndex = mMediaMuxer.addVideoTrack(mediaFormat);
-
                 mMediaMuxer.start();
+                Log.d(TAG, "mMediaMuxer.start() video");
             } else if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                 if (!isEOS) {
                     break;

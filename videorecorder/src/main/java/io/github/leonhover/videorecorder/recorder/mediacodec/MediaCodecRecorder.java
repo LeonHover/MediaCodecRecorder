@@ -29,18 +29,20 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     private CountDownLatch mStartLatch = new CountDownLatch(2);
     private CountDownLatch mStopLatch = new CountDownLatch(2);
 
-
     private int mPreviewWidth = 0;
     private int mPreviewHeight = 0;
-    private volatile boolean isRecording = false;
 
     private OffScreenWindow mOffScreenWindow;
 
-    private boolean isPrepared = false;
+    private boolean isRecording = false;
 
     public void setPreviewSize(int width, int height) {
         this.mPreviewWidth = width;
         this.mPreviewHeight = height;
+    }
+
+    public boolean isRecording() {
+        return isRecording;
     }
 
     @Override
@@ -67,6 +69,9 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
         mAudioEncoder.setCallBack(this);
         mAudioEncoder.setBitRate(mProfile.audioBitRate);
         mAudioEncoder.setSampleRate(mProfile.audioSamplingRate);
+        mAudioEncoder.setChannelCount(mProfile.audioChannelCount);
+        mAudioEncoder.setChannelMask(mProfile.audioChannelConfig);
+        mAudioEncoder.setSampleRate(mProfile.audioSamplingRate);
         mAudioEncoder.prepare();
 
 
@@ -75,7 +80,7 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
         mVideoEncoder.setCallBack(this);
         mVideoEncoder.setBitRate(mProfile.videoBitRate);
         mVideoEncoder.setFrameRate(mProfile.videoFrameRate);
-        mVideoEncoder.setIFrameInterval(5);
+        mVideoEncoder.setIFrameInterval(mProfile.videoIFrameInterval);
         mVideoEncoder.setVideoSize(mProfile.videoWidth, mProfile.videoHeight);
         mVideoEncoder.prepare();
 
@@ -90,10 +95,13 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     @Override
     public void start() {
         Log.d(TAG, "start");
-//        mMediaMuxer.start();
+        if (isRecording) {
+            Log.d(TAG, "you had already start recorder!!");
+            return;
+        }
         isRecording = true;
-        mAudioEncoder.start();
         mVideoEncoder.start();
+        mAudioEncoder.start();
         try {
             mStartLatch.await();
         } catch (InterruptedException e) {
@@ -104,17 +112,17 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     @Override
     public void stop() {
         Log.d(TAG, "stop");
-        if (mOffScreenWindow != null) {
-            mOffScreenWindow.detachSurface();
+        if (isRecording) {
+
+            mAudioEncoder.stop();
+            mVideoEncoder.stop();
+            try {
+                mStopLatch.await();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            mMediaMuxer.stop();
         }
-        mAudioEncoder.stop();
-        mVideoEncoder.stop();
-        try {
-            mStopLatch.await();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        mMediaMuxer.stop();
         isRecording = false;
     }
 
@@ -140,6 +148,11 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
         mOffScreenWindow.update(textureIndex, surfaceTexture);
     }
 
+    /**
+     * 创建一个离屏的Surface操作的"窗口"。
+     *
+     * @param eglContext 共享的EGLContext
+     */
     public void createInputSurfaceWindow(EGLContext eglContext) {
         mOffScreenWindow = new OffScreenWindow(eglContext);
     }
