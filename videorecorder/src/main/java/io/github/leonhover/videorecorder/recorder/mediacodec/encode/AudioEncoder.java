@@ -297,7 +297,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
             } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                 MediaFormat mediaFormat = mMediaCodec.getOutputFormat();
                 Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED audio:" + mediaFormat.toString());
-                mTrackIndex = mMediaMuxer.addTrack(mediaFormat);
+                mTrackIndex = mMediaMuxer.addAudioTrack(mediaFormat);
                 mMediaMuxer.start();
             } else if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                 if (!isEOS) {

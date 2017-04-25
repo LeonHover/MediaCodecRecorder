@@ -185,7 +185,7 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
 
     @Override
     public void onStopped(AudioEncoder audioEncoder) {
-        Log.d(TAG, "AudioEncoder audioEncoder");
+        Log.d(TAG, "onStopped audioEncoder");
         mStopLatch.countDown();
     }
 }

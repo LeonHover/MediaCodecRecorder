@@ -124,7 +124,7 @@ public class AudioRecorder implements Runnable {
         if (isRecording) {
             try {
                 mAudioRecord.startRecording();
-                mRecordingStartTime = System.nanoTime();
+                mRecordingStartTime = getSystemMicroTime();
             } catch (IllegalStateException e) {
                 e.printStackTrace();
                 if (mAudioDataReceiver != null) {
@@ -144,11 +144,11 @@ public class AudioRecorder implements Runnable {
                 if (length > 0 && mAudioDataReceiver != null) {
                     byteBuffer.position(length);
                     byteBuffer.flip();
-                    mAudioDataReceiver.onAudioDataReceived(byteBuffer, length, System.nanoTime() - mRecordingStartTime);
+                    mAudioDataReceiver.onAudioDataReceived(byteBuffer, length, getSystemMicroTime() - mRecordingStartTime);
                 }
             }
             if (mAudioDataReceiver != null) {
-                mAudioDataReceiver.onAudioRecorderStopped(System.nanoTime() - mRecordingStartTime);
+                mAudioDataReceiver.onAudioRecorderStopped(getSystemMicroTime() - mRecordingStartTime);
             }
 
             synchronized (mLocker) {
@@ -171,4 +171,7 @@ public class AudioRecorder implements Runnable {
         }
     }
 
+    private long getSystemMicroTime() {
+        return System.nanoTime() / 1000;
+    }
 }

@@ -238,7 +238,8 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
             } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                 MediaFormat mediaFormat = mMediaCodec.getOutputFormat();
                 Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED video:" + mediaFormat.toString());
-                mTrackIndex = mMediaMuxer.addTrack(mediaFormat);
+                mTrackIndex = mMediaMuxer.addVideoTrack(mediaFormat);
+
                 mMediaMuxer.start();
             } else if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                 if (!isEOS) {
