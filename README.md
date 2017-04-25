@@ -1,0 +1,2 @@
+# MediaCodecRecorder
+一个简单的视频录制程序，采用Android的MediaCodec进行编码。
