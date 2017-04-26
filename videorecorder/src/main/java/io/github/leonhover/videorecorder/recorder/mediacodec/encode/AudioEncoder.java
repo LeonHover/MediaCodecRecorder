@@ -1,17 +1,20 @@
 package io.github.leonhover.videorecorder.recorder.mediacodec.encode;
 
+import android.annotation.TargetApi;
 import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
-import android.provider.MediaStore;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.ArrayBlockingQueue;
 
 import io.github.leonhover.videorecorder.recorder.mediacodec.Utils;
 import io.github.leonhover.videorecorder.recorder.mediacodec.muxer.SyncMediaMuxer;
@@ -51,6 +54,9 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
     private SyncMediaMuxer mMediaMuxer;
     private MediaCodec mMediaCodec;
 
+    private boolean isRequestAsynchronousMode = false;
+    private ArrayBlockingQueue<AudioFrameData> mAudioFrameDataQueue;
+
     public AudioEncoder(SyncMediaMuxer mediaMuxer) {
         this.mMediaMuxer = mediaMuxer;
         this.mEncodingThread = new HandlerThread(AUDIO_ENCODING_THREAD_NAME);
@@ -60,6 +66,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
 
     /**
      * 设置音频编码器的回调
+     *
      * @param callBack
      */
     public void setCallBack(CallBack callBack) {
@@ -68,6 +75,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
 
     /**
      * 音频采样率
+     *
      * @param sampleRate 采样率
      */
     public void setSampleRate(int sampleRate) {
@@ -76,6 +84,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
 
     /**
      * 音频码率
+     *
      * @param bitRate 码率
      */
     public void setBitRate(int bitRate) {
@@ -84,6 +93,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
 
     /**
      * 声道数量
+     *
      * @param count 数量
      */
     public void setChannelCount(int count) {
@@ -92,10 +102,20 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
 
     /**
      * 声道配置
+     *
      * @param channelMask 声道配置
      */
     public void setChannelMask(int channelMask) {
         this.mChannelMask = channelMask;
+    }
+
+    /**
+     * 尝试使用异步模式进行编码，如果设备支持的话，目前只有在{@link android.os.Build.VERSION_CODES#LOLLIPOP}
+     * 以上版本才支持。
+     * @param on true 开，false关
+     */
+    public void setAsynchronousMode(boolean on) {
+        this.isRequestAsynchronousMode = on;
     }
 
     public void prepare() {
@@ -120,6 +140,11 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
 
         mCallBack = null;
         this.isEncoding = false;
+
+        if (isAsynchronousMode()) {
+            mAudioFrameDataQueue.clear();
+            mAudioFrameDataQueue = null;
+        }
 
     }
 
@@ -148,7 +173,12 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
 
     private void handlePrepare() {
 
-        mBufferInfo = new MediaCodec.BufferInfo();
+
+        if (isAsynchronousMode()) {
+            mAudioFrameDataQueue = new ArrayBlockingQueue<AudioFrameData>(10);
+        } else {
+            mBufferInfo = new MediaCodec.BufferInfo();
+        }
 
         MediaCodecInfo audioCodecInfo = Utils.chooseSuitableMediaCodec(AUDIO_MIME_TYPE);
         if (audioCodecInfo == null) {
@@ -178,19 +208,26 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
 
     private void handleStart() {
         isEncoding = true;
-        mMediaCodec.start();
         mAudioRecorder.start();
+        if (isAsynchronousMode()) {
+            setMediaCodecCallBack();
+        }
+        mMediaCodec.start();
         notifyEncoderCallBack(ENCODING_MSG_START);
     }
 
 
     private void handleStop() {
         mAudioRecorder.stop();
-        writeMuxerDataFromEncoding(true);
-        mMediaCodec.flush();
-        mMediaCodec.stop();
-        mMediaCodec.release();
-        notifyEncoderCallBack(ENCODING_MSG_STOP);
+        if (isAsynchronousMode()) {
+            // just wait encoding eos.
+        } else {
+            writeMuxerDataFromEncoding(true);
+            mMediaCodec.flush();
+            mMediaCodec.stop();
+            mMediaCodec.release();
+            notifyEncoderCallBack(ENCODING_MSG_STOP);
+        }
     }
 
 
@@ -218,14 +255,23 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
     @Override
     public void onAudioDataReceived(ByteBuffer byteBuffer, int length, long presentationTime) {
         Log.d(TAG, "onAudioDataReceived");
-        encode(byteBuffer, length, presentationTime);
-        mEncodingHandler.sendEmptyMessage(ENCODING_MSG_AUDIO_ENCODED);
+        if (isAsynchronousMode()) {
+            enterFrameQueue(byteBuffer, length, presentationTime);
+        } else {
+            encode(byteBuffer, length, presentationTime);
+            mEncodingHandler.sendEmptyMessage(ENCODING_MSG_AUDIO_ENCODED);
+        }
     }
 
     @Override
     public void onAudioRecorderStopped(long presentation) {
         Log.d(TAG, "onAudioRecorderStopped");
-        encode(null, 0, presentation);
+        if (isAsynchronousMode()) {
+            enterFrameQueue(null, 0, presentation);
+        } else {
+            encode(null, 0, presentation);
+            mEncodingHandler.sendEmptyMessage(ENCODING_MSG_AUDIO_RECORDING_STOPPED);
+        }
     }
 
     private void encode(ByteBuffer byteBuffer, int length, long presentationTime) {
@@ -276,50 +322,26 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
             int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 10);
             Log.d(TAG, "outputBufferIndex=" + outputBufferIndex + " flags:" + mBufferInfo.flags);
             if (outputBufferIndex >= 0) {
-                // outputBuffers[outputBufferId] is ready to be processed or rendered.
-
                 ByteBuffer encodedData = outputBuffers[outputBufferIndex];
-                if (encodedData == null) {
-                    throw new RuntimeException("encoderOutputBuffer " + outputBufferIndex +
-                            " was null");
-                }
-
-                if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                    // The codec config data was pulled out and fed to the muxer when we got
-                    // the INFO_OUTPUT_FORMAT_CHANGED status.  Ignore it.
-                    Log.d(TAG, "ignoring BUFFER_FLAG_CODEC_CONFIG");
-                    mBufferInfo.size = 0;
-                }
 
                 if (mBufferInfo.size != 0) {
-                    // adjust the ByteBuffer values to match BufferInfo (not needed?)
-                    encodedData.position(mBufferInfo.offset);
-                    encodedData.limit(mBufferInfo.offset + mBufferInfo.size);
-                    try {
-                        mMediaMuxer.writeSampleData(mTrackIndex, encodedData, mBufferInfo);
-                    } catch (Exception e) {
-
-                    }
-                    Log.d(TAG, "writeSampleData");
+                    mMediaMuxer.writeSampleData(mTrackIndex, encodedData, mBufferInfo);
                 }
 
                 mMediaCodec.releaseOutputBuffer(outputBufferIndex, false);
 
-
                 if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                     Log.e(TAG, "Encoding  end of stream");
                     isEncoding = false;
-                    break;      // out of while
+                    break;
                 }
 
             } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                 outputBuffers = mMediaCodec.getOutputBuffers();
             } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                 MediaFormat mediaFormat = mMediaCodec.getOutputFormat();
-                Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED audio:" + mediaFormat.toString());
                 mTrackIndex = mMediaMuxer.addAudioTrack(mediaFormat);
                 mMediaMuxer.start();
-                Log.d(TAG, "mMediaMuxer.start() audio:");
             } else if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                 if (!isEOS) {
                     break;
@@ -332,6 +354,101 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
     @Override
     public void onAudioRecorderError() {
 
+    }
+
+    private void enterFrameQueue(ByteBuffer byteBuffer, int length, long presentationTime) {
+        Log.d(TAG, "enterFrameQueue");
+        AudioFrameData frameData = new AudioFrameData();
+        frameData.byteBuffer = byteBuffer;
+        frameData.length = length;
+        frameData.presentationTime = presentationTime;
+
+        mAudioFrameDataQueue.offer(frameData);
+
+    }
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private void setMediaCodecCallBack() {
+
+        mMediaCodec.setCallback(new MediaCodec.Callback() {
+            @Override
+            public void onInputBufferAvailable(@NonNull MediaCodec codec, int index) {
+                Log.d(TAG, "onInputBufferAvailable index:" + index);
+                ByteBuffer byteBuffer = codec.getInputBuffer(index);
+                if (byteBuffer == null) {
+                    return;
+                }
+
+                Log.d(TAG, "frameDataQueue size:" + mAudioFrameDataQueue.size());
+
+                AudioFrameData frameData = mAudioFrameDataQueue.poll();
+
+                if (frameData != null) {
+                    if (frameData.length > 0) {
+                        byteBuffer.put(frameData.byteBuffer);
+                        mMediaCodec.queueInputBuffer(index, 0, frameData.length,
+                                frameData.presentationTime, 0);
+                    } else {
+                        mMediaCodec.queueInputBuffer(index, 0, 0,
+                                frameData.presentationTime, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+                    }
+                } else {
+                    mMediaCodec.queueInputBuffer(index, 0, 0,
+                            0, 0);
+                }
+            }
+
+            @Override
+            public void onOutputBufferAvailable(@NonNull MediaCodec codec, int index, @NonNull MediaCodec.BufferInfo info) {
+                Log.d(TAG, "onOutputBufferAvailable index:" + index);
+                if (index >= 0) {
+                    ByteBuffer outputBuffer = codec.getOutputBuffer(index);
+
+                    if (info.size != 0) {
+                        mMediaMuxer.writeSampleData(mTrackIndex, outputBuffer, info);
+                    }
+
+                    mMediaCodec.releaseOutputBuffer(index, false);
+
+                    if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                        Log.e(TAG, "Encoding  end of stream");
+                        isEncoding = false;
+                        mMediaCodec.flush();
+                        mMediaCodec.stop();
+                        mMediaCodec.release();
+                        notifyEncoderCallBack(ENCODING_MSG_STOP);
+                    }
+                }
+
+            }
+
+            @Override
+            public void onError(@NonNull MediaCodec codec, @NonNull MediaCodec.CodecException e) {
+                Log.d(TAG, "onError");
+            }
+
+            @Override
+            public void onOutputFormatChanged(@NonNull MediaCodec codec, @NonNull MediaFormat format) {
+                Log.d(TAG, "onOutputFormatChanged");
+                mTrackIndex = mMediaMuxer.addVideoTrack(format);
+                mMediaMuxer.start();
+            }
+        });
+
+    }
+
+    private boolean isLollipop() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP;
+    }
+
+    private boolean isAsynchronousMode() {
+        return isLollipop() && isRequestAsynchronousMode;
+    }
+
+    private static class AudioFrameData {
+        ByteBuffer byteBuffer;
+        int length;
+        long presentationTime;
     }
 
     public interface CallBack {

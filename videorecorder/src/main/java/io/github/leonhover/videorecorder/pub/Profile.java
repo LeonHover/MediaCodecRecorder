@@ -36,6 +36,8 @@ public class Profile {
 
     public int orientationHint = DEFAULT_ORIENTATION_HINT;
 
+    public boolean isRequestAsynchronousMode = false;
+
     public static class Builder {
 
         private int videoBitRate = DEFAULT_VIDEO_BIT_RATE;
@@ -49,6 +51,8 @@ public class Profile {
         private int audioSamplingRate = DEFAULT_AUDIO_SAMPLING_RATE;
         private int audioChannelCount = DEFAULT_AUDIO_CHANNEL_COUNT;
         private int audioChannelConfig = DEFAULT_AUDIO_CHANNEL_CONFIG;
+
+        public boolean isRequestAsynchronousMode = false;
 
         /**
          * 设置视频码率
@@ -114,7 +118,7 @@ public class Profile {
 
         /**
          * 设置音频的声道数量
-         * @param audioChannelCount 双良
+         * @param audioChannelCount 数量
          * @return Builder
          */
         public Builder setAudioChannelCount(int audioChannelCount) {
@@ -123,7 +127,7 @@ public class Profile {
         }
 
         /**
-         * 设置音频的声道配置,单声道、双声道、立体声等等
+         * 设置音频的声道配置,单声道、双声道、立体声等等 {@link android.media.AudioFormat}中的channel mask。
          * @param audioChannelConfig 声道配置
          * @return Builder
          */
@@ -142,6 +146,16 @@ public class Profile {
             return this;
         }
 
+        /**
+         * 尝试使用异步回调的方式来进行编码
+         * @param on 开关
+         * @return Builder
+         */
+        public Builder setAsynchronousMode(boolean on) {
+            isRequestAsynchronousMode = on;
+            return this;
+        }
+
         public Profile build() {
             Profile profile = new Profile();
             profile.audioBitRate = this.audioBitRate;
@@ -156,6 +170,8 @@ public class Profile {
             profile.videoIFrameInterval = this.videoIFrameInterval;
 
             profile.orientationHint = this.orientationHint;
+
+            profile.isRequestAsynchronousMode = this.isRequestAsynchronousMode;
             return profile;
         }
     }

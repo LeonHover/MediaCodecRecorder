@@ -10,7 +10,6 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton;
 
 import java.io.IOException;
-import java.util.List;
 
 import io.github.leonhover.videorecorder.camera.CameraView;
 import io.github.leonhover.videorecorder.pub.Profile;
@@ -20,16 +19,23 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
 
     private static final String TAG = "RecordingActivity";
 
-    public static final String TEST_VIDEO_RECORDER_OUTPUT = "/sdcard/videorecorder.mp4";
+    public static final String TEST_VIDEO_RECORDER_OUTPUT = "/sdcard/videorecorder_%d.mp4";
+    private static final int PREVIEW_WIDTH = 640;
+    private static final int PREVIEW_HEIGHT = 480;
+    private static final int VIDEO_WIDTH = 480;
+    private static final int VIDEO_HEIGHT = 480;
+    private static final int VIDEO_BIT_RATE = 1024 * 1024;
+    private static final int VIDEO_I_FRAME_INTERVAL = 3;
 
     private Camera mCamera;
     private CameraView mCameraView;
     private CheckBox mRecordingControl;
 
     private MediaCodecRecorder mVideoRecorder;
-//    private MediaCodecSyncRecorder mVideoRecorder;
 
     private boolean isSurfaceReady = false;
+
+    private int count = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,20 +47,17 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         mRecordingControl = (CheckBox) findViewById(R.id.recording_control);
         mRecordingControl.setOnCheckedChangeListener(mControlCheck);
         mVideoRecorder = new MediaCodecRecorder();
-
     }
-
-    private int count = 0;
 
     private void startRecording() {
         Log.d(TAG, "startRecording");
         if (isSurfaceReady) {
-            mVideoRecorder.setOutputFile("/sdcard/videorecorder_" + count + ".mp4");
+            mVideoRecorder.setOutputFile(String.format(TEST_VIDEO_RECORDER_OUTPUT,count));
             Profile.Builder builder = new Profile.Builder();
-            builder.setVideoSize(480, 480);
-            builder.setVideoBitRate((int) (1 * 1024 * 1024));
+            builder.setVideoSize(VIDEO_WIDTH, VIDEO_HEIGHT);
+            builder.setVideoBitRate(VIDEO_BIT_RATE);
+            builder.setVideoIFrameInterval(VIDEO_I_FRAME_INTERVAL);
             mVideoRecorder.setProfile(builder.build());
-//            mVideoRecorder.setCamera(mCamera);
             mVideoRecorder.prepare();
             mCamera.unlock();
             mVideoRecorder.start();
@@ -101,21 +104,14 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
     @Override
     public void onCameraSurfaceCreate(SurfaceTexture surfaceTexture) {
         Log.d(TAG, "onCameraSurfaceCreate");
-//        mVideoRecorder.setShareGlContext(EGL14.eglGetCurrentContext());
         mCamera = Camera.open();
         Camera.Parameters parameters = mCamera.getParameters();
         parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
-        List<Camera.Size> previewSizes = parameters.getSupportedPreviewSizes();
-
-        for (Camera.Size size : previewSizes) {
-            Log.d(TAG, "preview size supported:(" + size.width + "," + size.height + ")");
-        }
-
         mVideoRecorder.createInputSurfaceWindow(EGL14.eglGetCurrentContext());
         try {
-            parameters.setPreviewSize(640, 480);
-            mCameraView.setPreviewSize(480, 640);
-            mVideoRecorder.setPreviewSize(480, 640);
+            parameters.setPreviewSize(PREVIEW_WIDTH, PREVIEW_HEIGHT);
+            mCameraView.setPreviewSize(PREVIEW_HEIGHT,PREVIEW_WIDTH);
+            mVideoRecorder.setPreviewSize(PREVIEW_HEIGHT,PREVIEW_WIDTH);
             mCamera.setParameters(parameters);
             mCamera.setPreviewTexture(surfaceTexture);
             mCamera.setDisplayOrientation(Profile.ORIENTATION_90);
@@ -146,6 +142,5 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
     @Override
     public void onCameraSurfaceUpdate(SurfaceTexture surfaceTexture, int textureId) {
         mVideoRecorder.updateInputSurfaceWindow(textureId, surfaceTexture);
-//        mVideoRecorder.updateInputSurface(surfaceTexture, textureId);
     }
 }

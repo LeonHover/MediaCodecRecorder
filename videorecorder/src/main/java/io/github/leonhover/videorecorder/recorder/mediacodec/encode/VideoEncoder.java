@@ -1,11 +1,14 @@
 package io.github.leonhover.videorecorder.recorder.mediacodec.encode;
 
+import android.annotation.TargetApi;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
+import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.Surface;
 
@@ -47,11 +50,12 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
     private Handler mEncodingHandler;
     private CallBack mCallBack;
 
-
     private SyncMediaMuxer mMediaMuxer;
     private MediaCodec mMediaCodec;
     private MediaCodec.BufferInfo mBufferInfo;
     private int mTrackIndex;
+
+    private boolean isRequestAsynchronousMode = false;
 
     public VideoEncoder(SyncMediaMuxer mediaMuxer) {
         this.mMediaMuxer = mediaMuxer;
@@ -62,6 +66,7 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
     /**
      * 获取视频编码器的供输入用的Surface。需要在{@code prepare}后方可调用。
+     *
      * @return Surface
      */
     public Surface getInputSurface() {
@@ -92,6 +97,7 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
     /**
      * 设定视频编码器的回调
+     *
      * @param callBack 回调
      */
     public void setCallBack(CallBack callBack) {
@@ -100,7 +106,8 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
     /**
      * 录制的视频大小
-     * @param width 宽
+     *
+     * @param width   宽
      * @param mHeight 高
      */
     public void setVideoSize(int width, int mHeight) {
@@ -110,6 +117,7 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
     /**
      * 视频帧率
+     *
      * @param frameRate 帧率，单位为frame/sec
      */
     public void setFrameRate(int frameRate) {
@@ -118,6 +126,7 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
     /**
      * 视频码率
+     *
      * @param bitRate 码率，单位为bit/sec
      */
     public void setBitRate(int bitRate) {
@@ -126,10 +135,21 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
     /**
      * 关键帧间隔
+     *
      * @param interval 间隔时间，单位秒
      */
     public void setIFrameInterval(int interval) {
         this.mIFrameInterval = interval;
+    }
+
+    /**
+     * 尝试使用异步模式进行编码，如果设备支持的话，目前只有在{@link android.os.Build.VERSION_CODES#LOLLIPOP}
+     * 以上版本才支持。
+     *
+     * @param on true 开，false关
+     */
+    public void setAsynchronousMode(boolean on) {
+        this.isRequestAsynchronousMode = on;
     }
 
     @Override
@@ -153,7 +173,9 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
     private void handlePrepare() {
 
-        this.mBufferInfo = new MediaCodec.BufferInfo();
+        if (!isAsynchronousMode()) {
+            this.mBufferInfo = new MediaCodec.BufferInfo();
+        }
 
         MediaCodecInfo videoCodecInfo = Utils.chooseSuitableMediaCodec(VIDEO_MIME_TYPE);
         if (videoCodecInfo == null) {
@@ -184,7 +206,13 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
     private void handleStart() {
         Log.d(TAG, "handleStart");
+
+        if (isAsynchronousMode()) {
+            setMediaCodecCallBack();
+        }
+
         mMediaCodec.start();
+
         isEncoding = true;
         notifyEncoderCallBack(ENCODING_MSG_START);
 
@@ -193,11 +221,15 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
     private void handleStop() {
         Log.d(TAG, "handleStop");
         mMediaCodec.signalEndOfInputStream();
-        writeMuxerDataFromEncoding(true);
-        mMediaCodec.flush();
-        mMediaCodec.stop();
-        mMediaCodec.release();
-        notifyEncoderCallBack(ENCODING_MSG_STOP);
+        if (isAsynchronousMode()) {
+            //just wait codec encoding eos
+        } else {
+            writeMuxerDataFromEncoding(true);
+            mMediaCodec.flush();
+            mMediaCodec.stop();
+            mMediaCodec.release();
+            notifyEncoderCallBack(ENCODING_MSG_STOP);
+        }
     }
 
     /**
@@ -215,31 +247,11 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
             int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 10);
             Log.d(TAG, "outputBufferIndex=" + outputBufferIndex + " flags:" + mBufferInfo.flags);
             if (outputBufferIndex >= 0) {
-                // outputBuffers[outputBufferId] is ready to be processed or rendered.
 
                 ByteBuffer encodedData = outputBuffers[outputBufferIndex];
-                if (encodedData == null) {
-                    throw new RuntimeException("encoderOutputBuffer " + outputBufferIndex +
-                            " was null");
-                }
-
-                if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                    // The codec config data was pulled out and fed to the muxer when we got
-                    // the INFO_OUTPUT_FORMAT_CHANGED status.  Ignore it.
-                    Log.d(TAG, "ignoring BUFFER_FLAG_CODEC_CONFIG");
-                    mBufferInfo.size = 0;
-                }
 
                 if (mBufferInfo.size != 0) {
-                    // adjust the ByteBuffer values to match BufferInfo (not needed?)
-                    encodedData.position(mBufferInfo.offset);
-                    encodedData.limit(mBufferInfo.offset + mBufferInfo.size);
-                    try {
-                        mMediaMuxer.writeSampleData(mTrackIndex, encodedData, mBufferInfo);
-                    } catch (Exception e) {
-
-                    }
-                    Log.d(TAG, "writeSampleData");
+                    mMediaMuxer.writeSampleData(mTrackIndex, encodedData, mBufferInfo);
                 }
 
                 mMediaCodec.releaseOutputBuffer(outputBufferIndex, false);
@@ -255,10 +267,8 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
                 outputBuffers = mMediaCodec.getOutputBuffers();
             } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                 MediaFormat mediaFormat = mMediaCodec.getOutputFormat();
-                Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED video:" + mediaFormat.toString());
                 mTrackIndex = mMediaMuxer.addVideoTrack(mediaFormat);
                 mMediaMuxer.start();
-                Log.d(TAG, "mMediaMuxer.start() video");
             } else if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                 if (!isEOS) {
                     break;
@@ -268,11 +278,70 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
         }
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private void setMediaCodecCallBack() {
+
+        mMediaCodec.setCallback(new MediaCodec.Callback() {
+            @Override
+            public void onInputBufferAvailable(@NonNull MediaCodec codec, int index) {
+                Log.d(TAG, "onInputBufferAvailable");
+            }
+
+            @Override
+            public void onOutputBufferAvailable(@NonNull MediaCodec codec, int index, @NonNull MediaCodec.BufferInfo info) {
+                Log.d(TAG, "onOutputBufferAvailable index:" + index);
+                if (index >= 0) {
+
+                    ByteBuffer outputBuffer = codec.getOutputBuffer(index);
+
+                    if (info.size != 0) {
+                        mMediaMuxer.writeSampleData(mTrackIndex, outputBuffer, info);
+                    }
+
+                    mMediaCodec.releaseOutputBuffer(index, false);
+
+                    if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                        Log.e(TAG, "Encoding  end of stream");
+                        isEncoding = false;
+                        mMediaCodec.flush();
+                        mMediaCodec.stop();
+                        mMediaCodec.release();
+                        notifyEncoderCallBack(ENCODING_MSG_STOP);
+                    }
+
+                }
+
+            }
+
+            @Override
+            public void onError(@NonNull MediaCodec codec, @NonNull MediaCodec.CodecException e) {
+                Log.d(TAG, "onError");
+            }
+
+            @Override
+            public void onOutputFormatChanged(@NonNull MediaCodec codec, @NonNull MediaFormat format) {
+                Log.d(TAG, "onOutputFormatChanged");
+                mTrackIndex = mMediaMuxer.addVideoTrack(format);
+                mMediaMuxer.start();
+            }
+        });
+
+    }
+
+    private boolean isLollipop() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP;
+    }
+
+    public boolean isAsynchronousMode() {
+        return isLollipop() && isRequestAsynchronousMode;
+    }
 
     @Override
     public void onOffScreenWindowUpdate() {
         Log.d(TAG, "onOffScreenWindowUpdate");
-        mEncodingHandler.sendEmptyMessage(ENCODING_MSG_CONSUME_INPUT_SURFACE);
+        if (!isAsynchronousMode()) {
+            mEncodingHandler.sendEmptyMessage(ENCODING_MSG_CONSUME_INPUT_SURFACE);
+        }
     }
 
     private void notifyEncoderCallBack(int what) {
