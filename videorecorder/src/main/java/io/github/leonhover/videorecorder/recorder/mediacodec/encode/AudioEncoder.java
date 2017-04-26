@@ -115,15 +115,11 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
      */
     public void release() {
 
-        if (mMediaCodec != null) {
-            mMediaCodec.flush();
-            mMediaCodec.release();
-        }
-
         mEncodingHandler.removeCallbacksAndMessages(null);
         mEncodingThread.quitSafely();
 
         mCallBack = null;
+        this.isEncoding = false;
 
     }
 

@@ -135,7 +135,13 @@ public class OffScreenWindow implements Handler.Callback {
         mSurfaceAttachedTime = SURFACE_ATTACHED_TIME_NONE;
         mWindowHandler.removeCallbacksAndMessages(null);
         mWindowThread.quitSafely();
+
         releaseGLSurface();
+
+        if (mGLContext != null) {
+            mGLContext.release();
+            mGLContext = null;
+        }
     }
 
     private void releaseGLSurface() {
@@ -146,10 +152,6 @@ public class OffScreenWindow implements Handler.Callback {
         if (mGLSurface != null) {
             mGLSurface.releaseEglSurface();
             mGLSurface = null;
-        }
-        if (mGLContext != null) {
-            mGLContext.release();
-            mGLContext = null;
         }
     }
 

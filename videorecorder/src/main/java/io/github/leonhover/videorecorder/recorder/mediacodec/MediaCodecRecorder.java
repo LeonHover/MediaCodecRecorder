@@ -47,7 +47,11 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
 
     @Override
     public void reset() {
+        if (isRecording) {
+            stop();
+        }
 
+        release();
     }
 
     @Override
@@ -114,6 +118,11 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
         Log.d(TAG, "stop");
         if (isRecording) {
 
+            if (mOffScreenWindow != null) {
+                mOffScreenWindow.detachSurface();
+                mOffScreenWindow.setCallBack(null);
+            }
+
             mAudioEncoder.stop();
             mVideoEncoder.stop();
             try {
@@ -133,9 +142,7 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
             mOffScreenWindow.release();
         }
 
-        if (mVideoEncoder != null) {
-            mVideoEncoder.release();
-        }
+        isRecording = false;
     }
 
     /**
@@ -179,6 +186,9 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     @Override
     public void onStopped(VideoEncoder videoEncoder) {
         Log.d(TAG, "onStopped videoEncoder");
+        if (videoEncoder != null) {
+            videoEncoder.release();
+        }
         mStopLatch.countDown();
     }
 
@@ -199,6 +209,9 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     @Override
     public void onStopped(AudioEncoder audioEncoder) {
         Log.d(TAG, "onStopped audioEncoder");
+        if (audioEncoder != null) {
+            audioEncoder.release();
+        }
         mStopLatch.countDown();
     }
 }

@@ -86,10 +86,8 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
     public void release() {
         mEncodingHandler.removeCallbacksAndMessages(null);
         mEncodingThread.quitSafely();
-        if (mMediaCodec != null) {
-            mMediaCodec.release();
-        }
-
+        this.mCallBack = null;
+        this.isEncoding = false;
     }
 
     /**
