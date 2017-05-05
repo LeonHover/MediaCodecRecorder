@@ -51,8 +51,8 @@ public class SyncMediaMuxer {
         synchronized (mLocker) {
             if (isStarted) {
                 Log.d(TAG, "stop");
-                mMediaMuxer.stop();
                 isStarted = false;
+                mMediaMuxer.stop();
             }
         }
     }

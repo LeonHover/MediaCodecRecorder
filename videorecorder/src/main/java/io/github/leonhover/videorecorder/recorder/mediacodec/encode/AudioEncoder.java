@@ -232,7 +232,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
 
 
     private void notifyEncoderCallBack(int what) {
-
+        Log.d(TAG, "notifyEncoderCallBack what:" + what);
         final CallBack callBack = mCallBack;
         if (callBack == null) {
             return;

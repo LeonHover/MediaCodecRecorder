@@ -85,7 +85,7 @@ public class CameraView extends GLSurfaceView implements SurfaceTexture.OnFrameA
         if (this.mCameraSurfaceListener != null) {
             this.mCameraSurfaceListener.onCameraSurfaceDestroy(mSurfaceTexture);
         }
-        this.mGLSurfaceFilter.release();
+        mSurfaceTexture.release();
     }
 
     @Override

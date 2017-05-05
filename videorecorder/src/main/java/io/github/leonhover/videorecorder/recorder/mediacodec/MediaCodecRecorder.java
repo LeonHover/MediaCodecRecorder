@@ -25,9 +25,9 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     private VideoEncoder mVideoEncoder;
     private SyncMediaMuxer mMediaMuxer;
 
-    private CountDownLatch mPrepareLatch = new CountDownLatch(2);
-    private CountDownLatch mStartLatch = new CountDownLatch(2);
-    private CountDownLatch mStopLatch = new CountDownLatch(2);
+    private CountDownLatch mPrepareLatch;
+    private CountDownLatch mStartLatch;
+    private CountDownLatch mStopLatch;
 
     private int mPreviewWidth = 0;
     private int mPreviewHeight = 0;
@@ -89,11 +89,13 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
         mVideoEncoder.prepare();
 
         try {
+            mPrepareLatch = new CountDownLatch(2);
             mPrepareLatch.await();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
 
+        Log.d(TAG, "prepare end");
     }
 
     @Override
@@ -107,17 +109,18 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
         mVideoEncoder.start();
         mAudioEncoder.start();
         try {
+            mStartLatch = new CountDownLatch(2);
             mStartLatch.await();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        Log.d(TAG, "start end");
     }
 
     @Override
     public void stop() {
         Log.d(TAG, "stop");
         if (isRecording) {
-
             if (mOffScreenWindow != null) {
                 mOffScreenWindow.detachSurface();
                 mOffScreenWindow.setCallBack(null);
@@ -126,6 +129,7 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
             mAudioEncoder.stop();
             mVideoEncoder.stop();
             try {
+                mStopLatch = new CountDownLatch(2);
                 mStopLatch.await();
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -133,6 +137,7 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
             mMediaMuxer.stop();
         }
         isRecording = false;
+        Log.d(TAG, "stop end");
     }
 
     @Override

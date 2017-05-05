@@ -241,8 +241,8 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
             return;
         }
 
+        Log.d(TAG, "writeMuxerDataFromEncoding isEOS：" + isEOS);
         ByteBuffer[] outputBuffers = mMediaCodec.getOutputBuffers();
-
         while (isEncoding) {
             int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 10);
             Log.d(TAG, "outputBufferIndex=" + outputBufferIndex + " flags:" + mBufferInfo.flags);
@@ -250,8 +250,13 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
                 ByteBuffer encodedData = outputBuffers[outputBufferIndex];
 
-                if (mBufferInfo.size != 0) {
+
+                if (mBufferInfo.size > 0) {
                     mMediaMuxer.writeSampleData(mTrackIndex, encodedData, mBufferInfo);
+                }
+
+                if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
+                    Log.e(TAG, "writeMuxerDataFromEncoding key Frame");
                 }
 
                 mMediaCodec.releaseOutputBuffer(outputBufferIndex, false);
@@ -345,7 +350,7 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
     }
 
     private void notifyEncoderCallBack(int what) {
-
+        Log.d(TAG, "notifyEncoderCallBack what:" + what);
         final CallBack callBack = mCallBack;
         if (callBack == null) {
             return;
