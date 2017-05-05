@@ -52,7 +52,7 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
     private void startRecording() {
         Log.d(TAG, "startRecording");
         if (isSurfaceReady) {
-            mVideoRecorder.setOutputFile(String.format(TEST_VIDEO_RECORDER_OUTPUT,count));
+            mVideoRecorder.setOutputFile(String.format(TEST_VIDEO_RECORDER_OUTPUT, count));
             Profile.Builder builder = new Profile.Builder();
             builder.setVideoSize(VIDEO_WIDTH, VIDEO_HEIGHT);
             builder.setVideoBitRate(VIDEO_BIT_RATE);
@@ -110,8 +110,8 @@ public class RecordingActivity extends AppCompatActivity implements CameraView.C
         mVideoRecorder.createInputSurfaceWindow(EGL14.eglGetCurrentContext());
         try {
             parameters.setPreviewSize(PREVIEW_WIDTH, PREVIEW_HEIGHT);
-            mCameraView.setPreviewSize(PREVIEW_HEIGHT,PREVIEW_WIDTH);
-            mVideoRecorder.setPreviewSize(PREVIEW_HEIGHT,PREVIEW_WIDTH);
+            mCameraView.setPreviewSize(PREVIEW_HEIGHT, PREVIEW_WIDTH);
+            mVideoRecorder.setPreviewSize(PREVIEW_HEIGHT, PREVIEW_WIDTH);
             mCamera.setParameters(parameters);
             mCamera.setPreviewTexture(surfaceTexture);
             mCamera.setDisplayOrientation(Profile.ORIENTATION_90);

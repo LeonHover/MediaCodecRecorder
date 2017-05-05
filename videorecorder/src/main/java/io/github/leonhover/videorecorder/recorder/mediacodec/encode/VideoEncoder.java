@@ -274,6 +274,7 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
                 MediaFormat mediaFormat = mMediaCodec.getOutputFormat();
                 mTrackIndex = mMediaMuxer.addVideoTrack(mediaFormat);
                 mMediaMuxer.start();
+                Log.d(TAG, "video mediaMuxer start");
             } else if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                 if (!isEOS) {
                     break;
@@ -367,6 +368,7 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
                 callBack.onStopped(this);
                 break;
             default:
+                callBack.onInfo(this, what);
         }
     }
 
@@ -376,5 +378,7 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
         void onStarted(VideoEncoder videoEncoder);
 
         void onStopped(VideoEncoder videoEncoder);
+
+        void onInfo(VideoEncoder videoEncoder, int info);
     }
 }

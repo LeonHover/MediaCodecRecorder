@@ -212,11 +212,11 @@ public class OffScreenWindow implements Handler.Callback {
                 break;
             case WINDOW_MSG_UPDATE:
 
+                Log.d(TAG, "WINDOW_MSG_UPDATE");
                 if (mGLSurface == null) {
                     return false;
                 }
 
-                Log.d(TAG, "WINDOW_MSG_UPDATE");
                 SurfaceTexture surfaceTexture = (SurfaceTexture) msg.obj;
                 int textureIndex = msg.arg1;
                 long presentationTime = msg.getData().getLong(UPDATE_PRESENTATION_TIME_KEY);

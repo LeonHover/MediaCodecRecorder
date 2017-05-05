@@ -57,6 +57,10 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     @Override
     public void prepare() {
         Log.d(TAG, "prepare");
+        if (isRecording) {
+            Log.d(TAG, "prepare you had already start recorder!!");
+            return;
+        }
         if (TextUtils.isEmpty(mPath)) {
             Log.d(TAG, "output path is empty,can not continue preparing");
             return;
@@ -66,6 +70,8 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
             Log.e(TAG, "Do you setup a profile for MediaCodecRecorder?");
             return;
         }
+
+        mPrepareLatch = new CountDownLatch(2);
 
         mMediaMuxer = new SyncMediaMuxer(mPath);
         //音频
@@ -89,7 +95,6 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
         mVideoEncoder.prepare();
 
         try {
-            mPrepareLatch = new CountDownLatch(2);
             mPrepareLatch.await();
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -102,14 +107,14 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     public void start() {
         Log.d(TAG, "start");
         if (isRecording) {
-            Log.d(TAG, "you had already start recorder!!");
+            Log.d(TAG, "start you had already start recorder!!");
             return;
         }
         isRecording = true;
+        mStartLatch = new CountDownLatch(2);
         mVideoEncoder.start();
         mAudioEncoder.start();
         try {
-            mStartLatch = new CountDownLatch(2);
             mStartLatch.await();
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -121,6 +126,7 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     public void stop() {
         Log.d(TAG, "stop");
         if (isRecording) {
+            mStopLatch = new CountDownLatch(2);
             if (mOffScreenWindow != null) {
                 mOffScreenWindow.detachSurface();
                 mOffScreenWindow.setCallBack(null);
@@ -129,7 +135,6 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
             mAudioEncoder.stop();
             mVideoEncoder.stop();
             try {
-                mStopLatch = new CountDownLatch(2);
                 mStopLatch.await();
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -197,6 +202,12 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
         mStopLatch.countDown();
     }
 
+
+    @Override
+    public void onInfo(VideoEncoder videoEncoder, int info) {
+
+    }
+
     @Override
     public void onPrepared(AudioEncoder audioEncoder) {
         Log.d(TAG, "onPrepared audioEncoder");
@@ -208,7 +219,6 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     public void onStarted(AudioEncoder audioEncoder) {
         Log.d(TAG, "onStarted audioEncoder");
         mStartLatch.countDown();
-
     }
 
     @Override
@@ -218,5 +228,9 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
             audioEncoder.release();
         }
         mStopLatch.countDown();
+    }
+
+    @Override
+    public void onInfo(AudioEncoder audioEncoder, int info) {
     }
 }

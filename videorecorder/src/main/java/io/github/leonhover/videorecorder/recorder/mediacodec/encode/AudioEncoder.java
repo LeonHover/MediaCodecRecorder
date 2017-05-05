@@ -112,6 +112,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
     /**
      * 尝试使用异步模式进行编码，如果设备支持的话，目前只有在{@link android.os.Build.VERSION_CODES#LOLLIPOP}
      * 以上版本才支持。
+     *
      * @param on true 开，false关
      */
     public void setAsynchronousMode(boolean on) {
@@ -249,6 +250,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
                 callBack.onStopped(this);
                 break;
             default:
+                callBack.onInfo(this, what);
         }
     }
 
@@ -342,6 +344,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
                 MediaFormat mediaFormat = mMediaCodec.getOutputFormat();
                 mTrackIndex = mMediaMuxer.addAudioTrack(mediaFormat);
                 mMediaMuxer.start();
+                Log.d(TAG, "audio mediaMuxer start");
             } else if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                 if (!isEOS) {
                     break;
@@ -457,5 +460,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
         void onStarted(AudioEncoder audioEncoder);
 
         void onStopped(AudioEncoder audioEncoder);
+
+        void onInfo(AudioEncoder audioEncoder, int info);
     }
 }
