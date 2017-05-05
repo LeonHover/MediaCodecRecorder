@@ -430,7 +430,7 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
             @Override
             public void onOutputFormatChanged(@NonNull MediaCodec codec, @NonNull MediaFormat format) {
                 Log.d(TAG, "onOutputFormatChanged");
-                mTrackIndex = mMediaMuxer.addVideoTrack(format);
+                mTrackIndex = mMediaMuxer.addAudioTrack(format);
                 mMediaMuxer.start();
             }
         });
