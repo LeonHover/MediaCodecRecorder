@@ -127,10 +127,6 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
         Log.d(TAG, "stop");
         if (isRecording) {
             mStopLatch = new CountDownLatch(2);
-            if (mOffScreenWindow != null) {
-                mOffScreenWindow.detachSurface();
-                mOffScreenWindow.setCallBack(null);
-            }
 
             mAudioEncoder.stop();
             mVideoEncoder.stop();
@@ -196,6 +192,12 @@ public class MediaCodecRecorder extends VideoRecorder implements VideoEncoder.Ca
     @Override
     public void onStopped(VideoEncoder videoEncoder) {
         Log.d(TAG, "onStopped videoEncoder");
+
+        if (mOffScreenWindow != null) {
+            mOffScreenWindow.detachSurface();
+            mOffScreenWindow.setCallBack(null);
+        }
+
         if (videoEncoder != null) {
             videoEncoder.release();
         }

@@ -56,6 +56,10 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
     private int mTrackIndex;
 
     private boolean isRequestAsynchronousMode = false;
+    //是否请求了结束数据流的信号
+    private boolean isRequestEOS = false;
+    //是否有往Muxer中写入过Frame数据
+    private boolean hasFrameData = false;
 
     public VideoEncoder(SyncMediaMuxer mediaMuxer) {
         this.mMediaMuxer = mediaMuxer;
@@ -220,10 +224,11 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
     private void handleStop() {
         Log.d(TAG, "handleStop");
-        mMediaCodec.signalEndOfInputStream();
         if (isAsynchronousMode()) {
+            mMediaCodec.signalEndOfInputStream();
             //just wait codec encoding eos
         } else {
+            isRequestEOS = true;
             writeMuxerDataFromEncoding(true);
             mMediaCodec.flush();
             mMediaCodec.stop();
@@ -236,13 +241,34 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
      * 编码后的数据写入Muxer中
      */
     private void writeMuxerDataFromEncoding(boolean isEOS) {
-
+        Log.d(TAG, "writeMuxerDataFromEncoding start isEOS:" + isEOS);
         if (!isEncoding) {
+            Log.d(TAG, "writeMuxerDataFromEncoding end isEOS:" + isEOS + ",isEncoding:" + isEncoding);
             return;
         }
 
-        Log.d(TAG, "writeMuxerDataFromEncoding isEOS：" + isEOS);
+        if (isRequestEOS != isEOS) {
+            //请求停止了，但是仍旧有离屏的画面更新回调，要求编码，丢弃
+            Log.d(TAG, "Already request eos,so ignore dequeuebuffer.");
+            Log.d(TAG, "writeMuxerDataFromEncoding end isEOS:" + isEOS + ",isRequestEOS:" + isRequestEOS);
+            isEncoding = true;
+            return;
+        }
+
+        if (isEOS && !hasFrameData) {
+            //请求停止，但是没有写入过一帧数据，不能从MediaCodec中拉取数据，直接返回
+            Log.d(TAG, "writeMuxerDataFromEncoding end without frame!");
+            mMediaMuxer.cancel();
+            isEncoding = true;
+            return;
+        }
+
+        if (isEOS) {
+            mMediaCodec.signalEndOfInputStream();
+        }
+
         ByteBuffer[] outputBuffers = mMediaCodec.getOutputBuffers();
+
         while (isEncoding) {
             int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 10);
             Log.d(TAG, "outputBufferIndex=" + outputBufferIndex + " flags:" + mBufferInfo.flags);
@@ -250,13 +276,9 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
 
                 ByteBuffer encodedData = outputBuffers[outputBufferIndex];
 
-
-                if (mBufferInfo.size > 0) {
+                if (mBufferInfo.size != 0) {
                     mMediaMuxer.writeSampleData(mTrackIndex, encodedData, mBufferInfo);
-                }
-
-                if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
-                    Log.e(TAG, "writeMuxerDataFromEncoding key Frame");
+                    hasFrameData = true;
                 }
 
                 mMediaCodec.releaseOutputBuffer(outputBufferIndex, false);
@@ -274,7 +296,6 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
                 MediaFormat mediaFormat = mMediaCodec.getOutputFormat();
                 mTrackIndex = mMediaMuxer.addVideoTrack(mediaFormat);
                 mMediaMuxer.start();
-                Log.d(TAG, "video mediaMuxer start");
             } else if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                 if (!isEOS) {
                     break;
@@ -282,6 +303,7 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
             }
 
         }
+        Log.d(TAG, "writeMuxerDataFromEncoding end isEOS:" + isEOS);
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)

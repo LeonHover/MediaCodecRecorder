@@ -18,6 +18,7 @@ public class SyncMediaMuxer {
     private static final String TAG = "SyncMediaMuxer";
     private MediaMuxer mMediaMuxer;
     private boolean isStarted = false;
+    private boolean isRequestCancel = false;
     private final Object mLocker = new Object();
     //音频和视频两个轨道
     private CountDownLatch mStartCountDownLatch = new CountDownLatch(2);
@@ -39,7 +40,7 @@ public class SyncMediaMuxer {
             e.printStackTrace();
         }
         synchronized (mLocker) {
-            if (!isStarted) {
+            if (!isStarted && !isRequestCancel) {
                 Log.d(TAG, "start");
                 mMediaMuxer.start();
                 isStarted = true;
@@ -53,6 +54,17 @@ public class SyncMediaMuxer {
                 Log.d(TAG, "stop");
                 isStarted = false;
                 mMediaMuxer.stop();
+            }
+        }
+    }
+
+    public void cancel() {
+        Log.d(TAG, "cancel");
+        synchronized (mLocker) {
+            isRequestCancel = true;
+            long count = mStartCountDownLatch.getCount();
+            for (int i = 0; i < count; i++) {
+                mStartCountDownLatch.countDown();
             }
         }
     }
