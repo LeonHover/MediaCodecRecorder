@@ -324,6 +324,11 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
             int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 10);
             Log.d(TAG, "outputBufferIndex=" + outputBufferIndex + " flags:" + mBufferInfo.flags);
             if (outputBufferIndex >= 0) {
+
+                if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                    mBufferInfo.size = 0;
+                }
+
                 ByteBuffer encodedData = outputBuffers[outputBufferIndex];
 
                 if (mBufferInfo.size != 0) {
@@ -405,6 +410,11 @@ public class AudioEncoder implements Handler.Callback, AudioRecorder.IAudioDataR
             public void onOutputBufferAvailable(@NonNull MediaCodec codec, int index, @NonNull MediaCodec.BufferInfo info) {
                 Log.d(TAG, "onOutputBufferAvailable index:" + index);
                 if (index >= 0) {
+
+                    if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                        mBufferInfo.size = 0;
+                    }
+
                     ByteBuffer outputBuffer = codec.getOutputBuffer(index);
 
                     if (info.size != 0) {

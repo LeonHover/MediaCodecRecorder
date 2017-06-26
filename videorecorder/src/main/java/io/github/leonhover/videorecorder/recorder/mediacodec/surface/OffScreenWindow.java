@@ -174,7 +174,7 @@ public class OffScreenWindow implements Handler.Callback {
                 msg.setData(extraData);
             }
 
-            extraData.putLong(UPDATE_PRESENTATION_TIME_KEY, (System.nanoTime() - mSurfaceAttachedTime));
+            extraData.putLong(UPDATE_PRESENTATION_TIME_KEY, (System.nanoTime()));
             msg.arg1 = textureIndex;
             msg.obj = surfaceTexture;
             msg.sendToTarget();
