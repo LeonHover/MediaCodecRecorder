@@ -274,6 +274,10 @@ public class VideoEncoder implements Handler.Callback, OffScreenWindow.CallBack 
             Log.d(TAG, "outputBufferIndex=" + outputBufferIndex + " flags:" + mBufferInfo.flags);
             if (outputBufferIndex >= 0) {
 
+                if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                    mBufferInfo.size = 0;
+                }
+
                 ByteBuffer encodedData = outputBuffers[outputBufferIndex];
 
                 if (mBufferInfo.size != 0) {

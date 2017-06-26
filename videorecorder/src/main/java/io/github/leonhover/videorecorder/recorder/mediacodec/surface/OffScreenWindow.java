@@ -59,6 +59,9 @@ public class OffScreenWindow implements Handler.Callback {
         this.mWindowThread = new HandlerThread(OFFSCREEN_WINDOW_THREAD);
         this.mWindowThread.start();
         this.mWindowHandler = new Handler(this.mWindowThread.getLooper(), this);
+        mGLContext = new GLContext(mShareEGLContext);
+        mGLSurface = new GLSurface(mGLContext);
+        mGLSurfaceFilter = new GLSurfaceFilter();
         Matrix.setIdentityM(mMVPMatrix, 0);
     }
 
@@ -138,6 +141,10 @@ public class OffScreenWindow implements Handler.Callback {
 
         releaseGLSurface();
 
+        if (mGLSurfaceFilter != null) {
+            mGLSurfaceFilter.release();
+        }
+
         if (mGLContext != null) {
             mGLContext.release();
             mGLContext = null;
@@ -146,12 +153,8 @@ public class OffScreenWindow implements Handler.Callback {
 
     private void releaseGLSurface() {
         Log.d(TAG, "releaseGLSurface");
-        if (mGLSurfaceFilter != null) {
-            mGLSurfaceFilter.release();
-        }
         if (mGLSurface != null) {
             mGLSurface.releaseEglSurface();
-            mGLSurface = null;
         }
     }
 
@@ -200,11 +203,8 @@ public class OffScreenWindow implements Handler.Callback {
             case WINDOW_MSG_ATTACH_SURFACE:
                 Log.d(TAG, "WINDOW_MSG_ATTACH_SURFACE");
                 Surface surface = (Surface) msg.obj;
-                mGLContext = new GLContext(mShareEGLContext);
-                mGLSurface = new GLSurface(mGLContext);
                 mGLSurface.createSurface(surface);
                 mGLSurface.makeCurrent();
-                mGLSurfaceFilter = new GLSurfaceFilter();
                 break;
             case WINDOW_MSG_DETACH_SURFACE:
                 Log.d(TAG, "WINDOW_MSG_DETACH_SURFACE");
